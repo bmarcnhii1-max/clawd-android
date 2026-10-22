@@ -7,3 +7,6 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Real secrets live here — never commit
+.env.local
