@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#FF0E0E10</color>
+    <color name="card">#FF17181C</color>
+    <color name="accent">#FFD97757</color>
+    <color name="text">#FFEDEDED</color>
+    <color name="muted">#FF9AA0A6</color>
+    <color name="line">#FF2A2C31</color>
+    <color name="track">#FF3A3C42</color>
+    <color name="btn_soft">#FF212329</color>
+    <color name="on_accent">#FF1A120E</color>
+    <color name="ic_launcher_bg">#FF141414</color>
+</resources>
