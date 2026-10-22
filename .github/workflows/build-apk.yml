@@ -38,16 +38,22 @@ jobs:
       - name: Install Android SDK packages
         run: |
           # The Android SDK ships preinstalled on GitHub runners, but its
-          # cmdline-tools are not on PATH by default.
+          # cmdline-tools are not on PATH by default. GITHUB_PATH only affects
+          # later steps, so export PATH right here.
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           echo "SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          if [ -d "$SDK_ROOT/cmdline-tools/latest/bin" ]; then
-            echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          else
-            echo "cmdline-tools not found under $SDK_ROOT" >&2
+          CMDLINE="$SDK_ROOT/cmdline-tools/latest/bin"
+          if [ ! -x "$CMDLINE/sdkmanager" ]; then
+            echo "sdkmanager not found at $CMDLINE, searching..." >&2
+            CMDLINE="$(dirname "$(find "$SDK_ROOT" -name sdkmanager -type f -print -quit)")"
+          fi
+          if [ ! -x "$CMDLINE/sdkmanager" ]; then
+            echo "no sdkmanager under $SDK_ROOT" >&2
             ls "$SDK_ROOT" >&2
             exit 1
           fi
+          echo "$CMDLINE" >> "$GITHUB_PATH"
+          export PATH="$CMDLINE:$PATH"
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0"
 
