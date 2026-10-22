@@ -75,6 +75,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download APK
         uses: actions/download-artifact@v4
         with:
@@ -85,12 +88,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+          REPO="${{ github.repository }}"
+          if gh release view "${GITHUB_REF_NAME}" --repo "$REPO" > /dev/null 2>&1; then
             # Release already exists (re-run of the workflow): replace the asset
             # and keep the existing title and notes.
-            gh release upload "${GITHUB_REF_NAME}" app-debug.apk --clobber
+            gh release upload "${GITHUB_REF_NAME}" app-debug.apk --clobber --repo "$REPO"
           else
-            gh release create "${GITHUB_REF_NAME}" app-debug.apk \
+            gh release create "${GITHUB_REF_NAME}" app-debug.apk --repo "$REPO" \
               --title "Clawd for Android ${GITHUB_REF_NAME}" \
               --generate-notes
           fi
