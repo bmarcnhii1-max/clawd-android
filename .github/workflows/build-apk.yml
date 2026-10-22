@@ -84,6 +84,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" app-debug.apk \
-            --title "Clawd for Android ${GITHUB_REF_NAME}" \
-            --generate-notes
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            # Release already exists (re-run of the workflow): replace the asset
+            # and keep the existing title and notes.
+            gh release upload "${GITHUB_REF_NAME}" app-debug.apk --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" app-debug.apk \
+              --title "Clawd for Android ${GITHUB_REF_NAME}" \
+              --generate-notes
+          fi
