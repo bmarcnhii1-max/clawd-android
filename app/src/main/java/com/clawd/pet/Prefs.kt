@@ -22,6 +22,38 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("gravity", false)
         set(value) = sp.edit().putBoolean("gravity", value).apply()
 
+    var dance: Boolean
+        get() = sp.getBoolean("dance", true)
+        set(value) = sp.edit().putBoolean("dance", value).apply()
+
+    var tgAlive: Boolean
+        get() = sp.getBoolean("tg_alive", true)
+        set(value) = sp.edit().putBoolean("tg_alive", value).apply()
+
+    var tgLives: Int
+        get() = sp.getInt("tg_lives", 1)
+        set(value) = sp.edit().putInt("tg_lives", value).apply()
+
+    var tgHunger: Int
+        get() = sp.getInt("tg_hunger", 10)
+        set(value) = sp.edit().putInt("tg_hunger", value.coerceIn(0, 10)).apply()
+
+    var tgMood: Int
+        get() = sp.getInt("tg_mood", 10)
+        set(value) = sp.edit().putInt("tg_mood", value.coerceIn(0, 10)).apply()
+
+    var tgEnergy: Int
+        get() = sp.getInt("tg_energy", 10)
+        set(value) = sp.edit().putInt("tg_energy", value.coerceIn(0, 10)).apply()
+
+    var tgSleeping: Boolean
+        get() = sp.getBoolean("tg_sleeping", false)
+        set(value) = sp.edit().putBoolean("tg_sleeping", value).apply()
+
+    var tgUpdatedAt: Long
+        get() = sp.getLong("tg_updated_at", 0L)
+        set(value) = sp.edit().putLong("tg_updated_at", value).apply()
+
     var size: Int
         get() = sp.getInt("size", 1)
         set(value) = sp.edit().putInt("size", Math.floorMod(value, Sprite.sizes())).apply()

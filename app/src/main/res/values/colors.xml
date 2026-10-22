@@ -10,4 +10,7 @@
     <color name="btn_soft">#FF212329</color>
     <color name="on_accent">#FF1A120E</color>
     <color name="ic_launcher_bg">#FF141414</color>
+    <color name="stat_ok">#FF7BC996</color>
+    <color name="stat_warn">#FFE0A84D</color>
+    <color name="stat_bad">#FFE05B5B</color>
 </resources>

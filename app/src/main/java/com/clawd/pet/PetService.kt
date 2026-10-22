@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
@@ -42,6 +43,39 @@ class PetService : Service() {
     private var screenOn = true
     private var batteryLow = false
     private var userHidden = false
+    private var musicActive = false
+    private val audioManager: AudioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
+
+    /**
+     * Реакция на музыку: лёгкий опрос isMusicActive (1 р/с, только пока включён танец).
+     * Танцует под любой активный MEDIA-стрим (Spotify, YouTube Music и пр.),
+     * системные звуки и звонки игнорируются.
+     */
+    private val musicCheck: Runnable = Runnable {
+        if (!prefs.dance) {
+            return@Runnable
+        }
+        val active = try {
+            audioManager.isMusicActive
+        } catch (_: Exception) {
+            false
+        }
+        if (active != musicActive) {
+            musicActive = active
+            overlay?.setDance(active)
+        }
+        handler.postDelayed(musicCheck, 1000L)
+    }
+
+    private fun startMusicCheck() {
+        handler.removeCallbacks(musicCheck)
+        if (prefs.dance) {
+            handler.post(musicCheck)
+        } else {
+            musicActive = false
+            overlay?.setDance(false)
+        }
+    }
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context, intent: Intent) {
@@ -116,11 +150,15 @@ class PetService : Service() {
         overlay = PetOverlay(this, prefs)
         overlay?.screenActive = isScreenInteractive()
         maybeShow()
+        startMusicCheck()
         handler.postDelayed(screenCheck, 1500L)
     }
 
     private fun maybeShow() {
-        if (screenOn && !batteryLow && !userHidden) overlay?.show()
+        if (screenOn && !batteryLow && !userHidden) {
+            overlay?.show()
+            overlay?.setDance(musicActive && prefs.dance)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -130,7 +168,10 @@ class PetService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
-            ACTION_APPLY -> overlay?.applyConfig()
+            ACTION_APPLY -> {
+                overlay?.applyConfig()
+                startMusicCheck()
+            }
             ACTION_RESET_POS -> overlay?.resetPosition()
             ACTION_HIDE -> {
                 userHidden = true
@@ -150,6 +191,7 @@ class PetService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(screenCheck)
+        handler.removeCallbacks(musicCheck)
         overlay?.hide()
         try {
             unregisterReceiver(receiver)

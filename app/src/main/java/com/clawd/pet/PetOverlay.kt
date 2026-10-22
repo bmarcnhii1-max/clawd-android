@@ -53,6 +53,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         const val FLEE_TAPS = 8
         const val DISSOLVE_SPEED = 1.7f
         const val CONDENSE_SPEED = 2.4f
+        const val DANCE_BEAT_MS = 560L
     }
 
     private val random = kotlin.random.Random.Default
@@ -105,6 +106,9 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private var dissolveTarget = 0f
     private var blockNext = 0L
     private var fleeRise = 0f
+
+    private var dancing = false
+    private var danceNext = 0L
 
     private var bubbleText: String? = null
     private var bubbleUntil = 0L
@@ -355,6 +359,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         vy = 0f
         tapTimes.clear()
         lastTap = 0L
+        dancing = false
+        danceNext = 0L
     }
 
     private val returnRunnable = Runnable {
@@ -418,7 +424,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         if (!added) return
         val interval = when {
             state == STATE_FLY || state == STATE_FLEE || state == STATE_WALK ||
-                state == STATE_PET || hopActive || dissolve != dissolveTarget -> TICK_ACTIVE
+                state == STATE_PET || hopActive || dancing ||
+                dissolve != dissolveTarget -> TICK_ACTIVE
             state == STATE_SLEEP -> TICK_SLEEP
             else -> TICK_IDLE
         }
@@ -491,7 +498,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         }
 
         val timeout = prefs.sleepSeconds
-        if (timeout > 0 && now - lastInteraction > timeout * 1000L && !hopActive) {
+        if (timeout > 0 && now - lastInteraction > timeout * 1000L && !hopActive && !dancing) {
             state = STATE_SLEEP
             look = 0
             nextZ = now + 600L
@@ -502,8 +509,17 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             return
         }
 
-        if (prefs.gravity && y < maxY() - 0.5f && !hopActive) {
+        if (prefs.gravity && y < maxY() - 0.5f && !hopActive && !dancing) {
             startFall(0f)
+            return
+        }
+
+        if (dancing) {
+            if (!hopActive && now >= danceNext) {
+                danceNext = now + DANCE_BEAT_MS
+                hop(45f)
+                if (random.nextFloat() < 0.2f) spawnParticle("spark")
+            }
             return
         }
 
@@ -834,6 +850,22 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         bubbleUntil = uptime() + duration
     }
 
+    fun setDance(active: Boolean) {
+        val want = active && prefs.dance
+        if (dancing == want) return
+        dancing = want
+        if (want) {
+            if (state == STATE_SLEEP) state = STATE_IDLE
+            if (dissolve != 0f || dissolveTarget != 0f) {
+                dissolve = 0f
+                dissolveTarget = 0f
+            }
+            lastInteraction = uptime()
+            danceNext = uptime() + DANCE_BEAT_MS / 2
+            say("dance")
+        }
+    }
+
     private fun bodyTop(): Float = margin + bubbleH
 
     private fun bodyRise(): Float = hopOff - fleeRise
@@ -1102,6 +1134,16 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
         if ((state == STATE_IDLE || state == STATE_WALK) && now < waveUntil) {
             arms = if ((now / 200L) % 2L == 0L) "wave1" else "wave2"
+        }
+
+        if (dancing && (state == STATE_IDLE || state == STATE_WALK)) {
+            eyes = "happy"
+            blush = true
+            look = 0
+            val beat = (now / (DANCE_BEAT_MS / 2)) % 2L == 0L
+            squash = if (beat) 1 else 0
+            arms = if (beat) "wave1" else "wave2"
+            legs = if (beat) "dangle" else "stand"
         }
 
         if (hopActive && (state == STATE_IDLE || state == STATE_WALK)) {

@@ -49,8 +49,10 @@ class MainActivity : Activity() {
     private lateinit var swWander: Switch
     private lateinit var swPhrases: Switch
     private lateinit var swGravity: Switch
+    private lateinit var swDance: Switch
     private lateinit var btnOverlay: Button
     private lateinit var btnBattery: Button
+    private lateinit var btnTamagotchi: Button
     private lateinit var btnResetPos: Button
     private lateinit var btnHide: Button
     private lateinit var btnStart: Button
@@ -99,8 +101,10 @@ class MainActivity : Activity() {
         swWander = findViewById(R.id.swWander)
         swPhrases = findViewById(R.id.swPhrases)
         swGravity = findViewById(R.id.swGravity)
+        swDance = findViewById(R.id.swDance)
         btnOverlay = findViewById(R.id.btnOverlay)
         btnBattery = findViewById(R.id.btnBattery)
+        btnTamagotchi = findViewById(R.id.btnTamagotchi)
         btnResetPos = findViewById(R.id.btnResetPos)
         btnHide = findViewById(R.id.btnHide)
         btnStart = findViewById(R.id.btnStart)
@@ -125,6 +129,7 @@ class MainActivity : Activity() {
         swWander.isChecked = prefs.wander
         swPhrases.isChecked = prefs.phrases
         swGravity.isChecked = prefs.gravity
+        swDance.isChecked = prefs.dance
         suppressListeners = false
     }
 
@@ -152,8 +157,10 @@ class MainActivity : Activity() {
         swWander.text = ti["wander"] as String
         swPhrases.text = ti["phrases"] as String
         swGravity.text = ti["gravity"] as String
+        swDance.text = ti["dance"] as String
         btnStart.text = ti["start"] as String
         btnStop.text = ti["stop"] as String
+        btnTamagotchi.text = ti["tamagotchi"] as String
         btnResetPos.text = ti["reset_pos"] as String
         btnHide.text = if (PetService.petHidden) ti["show"] as String else ti["hide"] as String
         tvHint.text = ti["hint"] as String
@@ -232,9 +239,12 @@ class MainActivity : Activity() {
         swWander.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.wander = v; syncService() } }
         swPhrases.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.phrases = v; syncService() } }
         swGravity.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.gravity = v; syncService() } }
+        swDance.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.dance = v; syncService() } }
 
-        btnOverlay.setOnClickListener {
-            if (!Settings.canDrawOverlays(this)) {
+        btnTamagotchi.setOnClickListener {
+            startActivity(Intent(this, TamagotchiActivity::class.java))
+        }
+        btnOverlay.setOnClickListener {            if (!Settings.canDrawOverlays(this)) {
                 try {
                     startActivity(
                         Intent(

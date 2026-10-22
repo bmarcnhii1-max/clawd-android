@@ -21,6 +21,34 @@ class PetPreviewView @JvmOverloads constructor(
     private var phase = 0L
     private var running = true
     private var visible = true
+    private var mode = MODE_ALIVE
+    private var vigor = 1f
+    private val puffs = ArrayList<Puff>()
+    private val random = java.util.Random()
+
+    private class Puff(
+        val x: Float,
+        val y: Float,
+        val vx: Float,
+        val vy0: Float,
+        val born: Long,
+        val ttl: Long,
+        val side: Boolean,
+        val color: Int,
+    ) {
+        var px: Float = x
+        var py: Float = y
+        var vy: Float = vy0
+    }
+
+    companion object {
+        const val MODE_ALIVE = 0
+        const val MODE_SLEEP = 1
+        const val MODE_DEAD = 2
+        const val MODE_SAD = 3
+        const val BURST_PLAY = 0
+        const val BURST_FEED = 1
+    }
 
     fun setPet(color: Int, size: Int) {
         colorIndex = color
@@ -31,6 +59,38 @@ class PetPreviewView @JvmOverloads constructor(
 
     fun setRunning(value: Boolean) {
         running = value
+        invalidate()
+    }
+
+    fun setMode(value: Int) {
+        mode = value
+        invalidate()
+    }
+
+    fun setVigor(value: Float) {
+        vigor = value.coerceIn(0f, 1f)
+    }
+
+    fun burst(kind: Int) {
+        val d = resources.displayMetrics.density
+        val u = Sprite.unitDp(sizeIndex) * d
+        val now = System.nanoTime() / 1_000_000L
+        for (i in 0 until 7) {
+            val fromTop = kind == BURST_PLAY
+            puffs.add(
+                Puff(
+                    x = (width * (0.25f + random.nextFloat() * 0.5f)),
+                    y = height * (if (fromTop) 0.30f else 0.62f) + u * (random.nextFloat() - 0.5f),
+                    vx = (random.nextFloat() - 0.5f) * u * 3.2f,
+                    vy0 = if (fromTop) -u * (1.6f + random.nextFloat() * 2f)
+                    else -u * (0.6f + random.nextFloat() * 1.2f),
+                    born = now,
+                    ttl = 900L + random.nextLong(500),
+                    side = fromTop,
+                    color = if (fromTop) 0xFFD97757.toInt() else 0xFF7BC996.toInt(),
+                ),
+            )
+        }
         invalidate()
     }
 
@@ -59,23 +119,36 @@ class PetPreviewView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (running && visible) {
+        val alive = mode == MODE_ALIVE || mode == MODE_SAD
+        if (alive && running && visible) {
             phase = (phase + 1) % 60
             postInvalidateDelayed(50L)
         }
         val d = resources.displayMetrics.density
         val u = Sprite.unitDp(sizeIndex) * d
         unit = u
-        val bodyColor = Sprite.bodyColor(colorIndex)
-        val eyeColor = Sprite.eyeColor(colorIndex)
+        val dead = mode == MODE_DEAD
+        var bodyColor = Sprite.bodyColor(colorIndex)
+        var eyeColor = Sprite.eyeColor(colorIndex)
         val blushColor = blend(bodyColor, 0xFFFF4F79.toInt(), 0.5f)
+        if (dead) {
+            bodyColor = blend(bodyColor, 0xFF26282E.toInt(), 0.68f)
+            eyeColor = blend(eyeColor, 0xFF26282E.toInt(), 0.68f)
+        }
         val bodyW = u * Sprite.GRID_W
         val bodyH = u * Sprite.GRID_H
         val ox = (width - bodyW) / 2f
         val oy = (height - bodyH) / 2f
-        val bounce = if (running) -abs(sin(phase / 60.0 * Math.PI * 2.0)).toFloat() * u * 0.6f else 0f
-        val blink = running && phase in 30..32
-        val walk = running && phase < 30
+        val animating = alive && mode == MODE_ALIVE
+        val bounce = if (animating) {
+            -abs(sin(phase / 60.0 * Math.PI * 2.0)).toFloat() * u * (0.25f + 0.35f * vigor)
+        } else {
+            0f
+        }
+        val blink = animating && phase in 30..32
+        val walk = animating && phase < 30
+        val zzz = mode == MODE_SLEEP
+
 
         fun px(x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
             paint.color = color
@@ -108,13 +181,64 @@ class PetPreviewView @JvmOverloads constructor(
         val ey = top + 2
         for (side in intArrayOf(-1, 1)) {
             val cx = if (side < 0) left + 3 else right - 4
-            if (blink) {
-                px(cx, ey + 1, cx + 1, ey + 2, eyeColor)
-            } else {
-                px(cx, ey, cx + 1, ey + 2, eyeColor)
+            when {
+                dead -> {
+                    px(cx, ey, cx + 1, ey + 1, eyeColor)
+                    px(cx + 1, ey + 1, cx + 2, ey + 2, eyeColor)
+                    px(cx + 1, ey, cx + 2, ey + 1, eyeColor)
+                    px(cx, ey + 1, cx + 1, ey + 2, eyeColor)
+                }
+                blink || mode == MODE_SLEEP -> px(cx, ey + 1, cx + 1, ey + 2, eyeColor)
+                else -> px(cx, ey, cx + 1, ey + 2, eyeColor)
             }
-            if (side < 0) px(cx - 2, ey + 2, cx, ey + 3, blushColor)
-            else px(cx + 1, ey + 2, cx + 3, ey + 3, blushColor)
+            if (!dead) {
+                if (side < 0) px(cx - 2, ey + 2, cx, ey + 3, blushColor)
+                else px(cx + 1, ey + 2, cx + 3, ey + 3, blushColor)
+            }
+        }
+
+        paint.color = if (dead) blend(eyeColor, 0xFF26282E.toInt(), 0.4f) else eyeColor
+        when {
+            dead -> px(8, top + 6, 10, top + 7, paint.color)
+            mode == MODE_SAD -> {
+                px(7, top + 6, 8, top + 7, paint.color)
+                paint.color = eyeColor
+                px(8, top + 7, 10, top + 8, paint.color)
+            }
+            else -> px(7, top + 6, 11, top + 7, paint.color)
+        }
+
+
+        if (zzz && running && visible) {
+            paint.color = eyeColor
+            paint.textSize = u * 3.2f
+            paint.isFakeBoldText = true
+            val bob = sin(phase / 60.0 * Math.PI * 2.0).toFloat()
+            canvas.drawText("Z", right * u - u * 1.2f, top * u + u * 1.2f + bob * u * 0.8f, paint)
+            canvas.drawText("z", right * u + u * 1.4f, top * u - u * 0.2f + bob * u * 0.8f, paint)
+            paint.isFakeBoldText = false
+        }
+
+        if (puffs.isNotEmpty()) {
+            val now = System.nanoTime() / 1_000_000L
+            val it = puffs.iterator()
+            while (it.hasNext()) {
+                val p = it.next()
+                val age = (now - p.born).toFloat()
+                if (age > p.ttl) {
+                    it.remove()
+                    continue
+                }
+                val t = age / 20f
+                p.px += (p.vx / 60f) * t
+                p.py += (p.vy / 60f) * t
+                p.vy += if (p.side) 0.18f * u * t else -0.06f * u * t
+                paint.color = p.color
+                paint.alpha = (255 * (1f - age / p.ttl)).toInt().coerceIn(0, 255)
+                canvas.drawRect(p.px - u * 0.7f, p.py - u * 0.7f, p.px + u * 0.7f, p.py + u * 0.7f, paint)
+                paint.alpha = 255
+            }
+            if (visible) postInvalidateDelayed(50L)
         }
     }
 
