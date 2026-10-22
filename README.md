@@ -133,6 +133,18 @@ cp .env .env.local
 
 Never commit real API keys. If a credential is ever pushed, revoke it and rotate it immediately.
 
+## Releases
+
+Готовые APK лежат в [Releases](https://github.com/bmarcnhii1-max/clawd-android/releases).
+
+| Версия | Что внутри |
+| --- | --- |
+| [v1.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.0) | `app-debug.apk` — debug-сборка (отладочная подпись) |
+
+Установка: скачайте `app-debug.apk`, разрешите установку из неизвестных источников, откройте файл → дайте приложению право «отображать поверх других приложений» → **«Запустить питомца»**.
+
+Каждый тег `v*` автоматически собирает APK в CI (`.github/workflows/build-apk.yml`) и публикует его в релиз.
+
 ## Building in Android Studio
 
 1. Open the `clawd-android` folder in **Android Studio** (Ladybug or newer; SDK 35).
@@ -179,8 +191,11 @@ clawd-android/
 
 ## Possible next steps
 
-- **AI layer on top**: a chat overlay plus an `ai_client` in Kotlin — that would add the `INTERNET` permission, and could reuse the same pattern as the desktop version.
-- **Live wallpaper variant** (pet as the wallpaper) — no overlay permission needed.
+- **Live-wallpaper variant** (pet as the wallpaper) — no overlay permission needed.
+- **More sprite animations** — the pixel grid makes new poses cheap to add.
+- **Per-pet personality** — a small local profile (name, favorite color) stored next to the tamagotchi state.
+
+The desktop version has an optional AI chat layer. **This port deliberately does not**: an offline, zero-network pet is the whole point, and the manifest does not even request `INTERNET`.
 
 ## License
 
