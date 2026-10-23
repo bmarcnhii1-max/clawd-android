@@ -18,7 +18,7 @@ class TamagotchiActivity : Activity() {
     private companion object {
         const val MAX = 10
         const val DECAY_MS = 20L * 60_000L
-        const val SLEEP_REGEN_MS = 12_000L
+        const val SLEEP_REGEN_MS = 12L * 60_000L
         const val TICK_MS = 5_000L
     }
 
