@@ -47,7 +47,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         const val DREAM_MS = 5000L
         const val PET_HOLD_MS = 450L
         const val MENU_HOLD_MS = 1800L
-        const val DOCK_CLEARANCE_DP = 24f
         const val FLEE_HIDE_MS = 20000L
         const val TAP_WINDOW_MS = 2500L
         const val ANNOYED_TAPS = 4
@@ -567,8 +566,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             vx *= friction
             vy *= friction
         }
-        if (x < 0f) {
-            x = 0f
+        if (x < minX()) {
+            x = minX()
             vx = abs(vx) * 0.55f
             squashUntil = uptime() + 80L
         } else if (x > maxX()) {
@@ -576,8 +575,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             vx = -abs(vx) * 0.55f
             squashUntil = uptime() + 80L
         }
-        if (y < 0f) {
-            y = 0f
+        if (y < minX()) {
+            y = minX()
             vy = abs(vy) * 0.55f
         }
         val bottom = maxY()
@@ -959,7 +958,12 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
     private fun bodyRise(): Float = hopOff - fleeRise
 
-    private fun maxX(): Float = dm.widthPixels - viewW
+    // The view is larger than the drawn body (margins + bubble space), so the window can
+    // go "off-screen" by one margin: that is what lets the pet body itself touch the
+    // screen edges, including the area right above the navigation bar.
+    private fun minX(): Float = -margin
+
+    private fun maxX(): Float = dm.widthPixels - viewW + margin
 
     private val navBarHeight: Int by lazy {
         val res = context.resources
@@ -968,21 +972,21 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     private fun maxY(): Float =
-        max(0f, dm.heightPixels - navBarHeight - viewH - (4f + DOCK_CLEARANCE_DP) * density)
+        max(minX(), dm.heightPixels - navBarHeight - viewH + margin)
 
     private fun clampXY() {
-        x = x.coerceIn(0f, max(0f, maxX()))
-        y = y.coerceIn(0f, max(0f, maxY()))
+        x = x.coerceIn(minX(), max(minX(), maxX()))
+        y = y.coerceIn(minX(), max(minX(), maxY()))
     }
 
     private fun restorePos() {
         clampXY()
         if (prefs.positionSaved()) {
-            x = prefs.posX.toFloat().coerceIn(0f, max(0f, maxX()))
-            y = prefs.posY.toFloat().coerceIn(0f, max(0f, maxY()))
+            x = prefs.posX.toFloat().coerceIn(minX(), max(minX(), maxX()))
+            y = prefs.posY.toFloat().coerceIn(minX(), max(minX(), maxY()))
         } else {
-            x = max(0f, maxX() - unit * 3f)
-            y = max(0f, maxY())
+            x = max(minX(), maxX() - unit * 3f)
+            y = max(minX(), maxY())
         }
     }
 
