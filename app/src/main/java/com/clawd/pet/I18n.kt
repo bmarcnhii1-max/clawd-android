@@ -60,6 +60,8 @@ object I18n {
             "battery_needed" to "Отключить оптимизацию батареи",
             "battery_ok" to "Батарея: без ограничений",
             "no_internet" to "Приложение ничего не отправляет и не просит сеть",
+            "settings" to "Настройки",
+            "share" to "Поделиться настройками",
         ),
         "en" to mapOf(
             "language" to "Language",
@@ -119,6 +121,8 @@ object I18n {
             "battery_needed" to "Disable battery optimization",
             "battery_ok" to "Battery: unrestricted",
             "no_internet" to "The app sends nothing and never asks for network",
+            "settings" to "Settings",
+            "share" to "Share settings",
         ),
     )
 

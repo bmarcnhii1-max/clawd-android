@@ -77,6 +77,71 @@ class PetService : Service() {
         }
     }
 
+    /** Проверка состояния тамагочи: питомец в оверлее жалуется, если всё плохо. */
+    private val tgCheck: Runnable = Runnable {
+        Tg.applyDecay(prefs)
+        if (prefs.tgAlive && !userHidden && prefs.phrases &&
+            Tg.worst(prefs) <= 2 && kotlin.random.Random.nextFloat() < 0.35f
+        ) {
+            overlay?.speak("care", 3200L)
+        }
+        handler.postDelayed(tgCheck, 60_000L)
+    }
+
+    /** Раз в полчаса — заботливое напоминание (попить воды, разомнуться). */
+    private val remindCheck: Runnable = Runnable {
+        if (prefs.phrases && !userHidden && screenOn) {
+            overlay?.speak("remind", 4000L)
+        }
+        handler.postDelayed(remindCheck, 30L * 60_000L)
+    }
+
+    private var sensorManager: android.hardware.SensorManager? = null
+
+    private val shakeListener = object : android.hardware.SensorEventListener {
+        private var last = 0L
+
+        override fun onSensorChanged(event: android.hardware.SensorEvent) {
+            val v = event.values
+            val mag = kotlin.math.sqrt((v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).toDouble()).toFloat()
+            if (mag > 28f) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (now - last > 2500L) {
+                    last = now
+                    overlay?.scare()
+                }
+            }
+        }
+
+        override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+    }
+
+    private fun showQuickMenu() {
+        val t = I18n.t(prefs.lang)
+        overlay?.showMenu(
+            listOf(
+                t["tamagotchi"] as String to "tamagotchi",
+                t["hide"] as String to "hide",
+                t["settings"] as String to "settings",
+            ),
+        ) { key ->
+            when (key) {
+                "hide" -> {
+                    userHidden = true
+                    petHidden = true
+                    overlay?.hide()
+                    refreshNotification()
+                }
+                "tamagotchi" -> startActivity(
+                    Intent(this, TamagotchiActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+                "settings" -> startActivity(
+                    Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+        }
+    }
+
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context, intent: Intent) {
             when (intent.action) {
@@ -160,9 +225,16 @@ class PetService : Service() {
         }
         overlay = PetOverlay(this, prefs)
         overlay?.screenActive = isScreenInteractive()
+        overlay?.menuRequest = { showQuickMenu() }
         maybeShow()
         startMusicCheck()
         handler.postDelayed(screenCheck, 1500L)
+        handler.post(tgCheck)
+        handler.postDelayed(remindCheck, 30L * 60_000L)
+        sensorManager = getSystemService(SENSOR_SERVICE) as android.hardware.SensorManager?
+        sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)?.let {
+            sensorManager?.registerListener(shakeListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+        }
     }
 
     private fun maybeShow() {
@@ -204,6 +276,9 @@ class PetService : Service() {
     override fun onDestroy() {
         handler.removeCallbacks(screenCheck)
         handler.removeCallbacks(musicCheck)
+        handler.removeCallbacks(tgCheck)
+        handler.removeCallbacks(remindCheck)
+        sensorManager?.unregisterListener(shakeListener)
         overlay?.hide()
         try {
             unregisterReceiver(receiver)

@@ -16,9 +16,6 @@ import java.security.MessageDigest
 class TamagotchiActivity : Activity() {
 
     private companion object {
-        const val MAX = 10
-        const val DECAY_MS = 20L * 60_000L
-        const val SLEEP_REGEN_MS = 12L * 60_000L
         const val TICK_MS = 5_000L
     }
 
@@ -99,45 +96,7 @@ class TamagotchiActivity : Activity() {
      * Жизнь одна: переодически затухает даже когда игра закрыта (по реальному времени).
      * Пока спит — голод/настроение не тикают, бодрость восполняется.
      */
-    private fun applyDecay() {
-        val now = System.currentTimeMillis()
-        val stored = prefs.tgUpdatedAt
-        if (stored == 0L) {
-            prefs.tgUpdatedAt = now
-            return
-        }
-        if (prefs.tgAlive) {
-            val elapsed = now - stored
-            if (prefs.tgSleeping) {
-                if (prefs.tgEnergy >= MAX) {
-                    // спит с полной бодростью — время сна не конвертируется в голод
-                    prefs.tgSleeping = false
-                    prefs.tgUpdatedAt = now
-                    return
-                }
-                val regen = (elapsed / SLEEP_REGEN_MS).toInt()
-                if (regen > 0) {
-                    prefs.tgEnergy = prefs.tgEnergy + regen
-                    if (prefs.tgEnergy >= MAX) prefs.tgSleeping = false
-                    // списываем только потраченное, остаток не сгорает
-                    prefs.tgUpdatedAt = stored + regen * SLEEP_REGEN_MS
-                }
-            } else {
-                val lost = (elapsed / DECAY_MS).toInt()
-                if (lost > 0) {
-                    prefs.tgHunger -= lost
-                    prefs.tgMood -= lost
-                    prefs.tgEnergy -= lost
-                    prefs.tgUpdatedAt = stored + lost * DECAY_MS
-                }
-            }
-            if (prefs.tgAlive && prefs.tgHunger <= 0 && prefs.tgMood <= 0 && prefs.tgEnergy <= 0) {
-                prefs.tgAlive = false
-                prefs.tgSleeping = false
-                prefs.tgUpdatedAt = now
-            }
-        }
-    }
+    private fun applyDecay() = Tg.applyDecay(prefs)
 
     private fun act(kind: String) {
         if (!prefs.tgAlive) return
@@ -146,12 +105,12 @@ class TamagotchiActivity : Activity() {
         prefs.tgUpdatedAt = System.currentTimeMillis()
         if (kind == "feed") {
             prefs.tgSleeping = false
-            prefs.tgHunger = (prefs.tgHunger + 3).coerceAtMost(MAX)
+            prefs.tgHunger = (prefs.tgHunger + 3).coerceAtMost(Tg.MAX)
             prefs.tgEnergy = (prefs.tgEnergy - 1).coerceAtLeast(0)
             petView.burst(PetPreviewView.BURST_FEED)
         } else if (kind == "play") {
             prefs.tgSleeping = false
-            prefs.tgMood = (prefs.tgMood + 3).coerceAtMost(MAX)
+            prefs.tgMood = (prefs.tgMood + 3).coerceAtMost(Tg.MAX)
             prefs.tgEnergy = (prefs.tgEnergy - 1).coerceAtLeast(0)
             prefs.tgHunger = (prefs.tgHunger - 1).coerceAtLeast(0)
             petView.burst(PetPreviewView.BURST_PLAY)

@@ -57,6 +57,7 @@ class MainActivity : Activity() {
     private lateinit var btnHide: Button
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
+    private lateinit var btnShare: Button
     private lateinit var tvHint: TextView
 
     private var suppressListeners = false
@@ -109,6 +110,7 @@ class MainActivity : Activity() {
         btnHide = findViewById(R.id.btnHide)
         btnStart = findViewById(R.id.btnStart)
         btnStop = findViewById(R.id.btnStop)
+        btnShare = findViewById(R.id.btnShare)
         tvHint = findViewById(R.id.tvHint)
     }
 
@@ -160,6 +162,7 @@ class MainActivity : Activity() {
         swDance.text = ti["dance"] as String
         btnStart.text = ti["start"] as String
         btnStop.text = ti["stop"] as String
+        btnShare.text = ti["share"] as String
         btnTamagotchi.text = ti["tamagotchi"] as String
         btnResetPos.text = ti["reset_pos"] as String
         btnHide.text = if (PetService.petHidden) ti["show"] as String else ti["hide"] as String
@@ -262,6 +265,7 @@ class MainActivity : Activity() {
         btnHide.setOnClickListener { toggleHide() }
         btnStart.setOnClickListener { startPet() }
         btnStop.setOnClickListener { stopPet() }
+        btnShare.setOnClickListener { shareSettings() }
     }
 
     private fun resetPosition() {
@@ -338,6 +342,22 @@ class MainActivity : Activity() {
         if (!PetService.running) return
         sendToService(PetService.ACTION_STOP)
         Toast.makeText(this, t()["paused"] as String, Toast.LENGTH_SHORT).show()
+    }
+
+    /** Экспорт всех настроек и позиции одной строкой JSON через системный share. */
+    private fun shareSettings() {
+        val pos = if (prefs.positionSaved()) ",\"posX\":${prefs.posX},\"posY\":${prefs.posY}" else ""
+        val json = "{\"lang\":\"${prefs.lang}\",\"size\":${prefs.size},\"color\":${prefs.color}" +
+            ",\"wander\":${prefs.wander},\"phrases\":${prefs.phrases},\"gravity\":${prefs.gravity}" +
+            ",\"dance\":${prefs.dance},\"sleepSeconds\":${prefs.sleepSeconds}$pos}"
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, "Clawd settings: $json")
+        }
+        try {
+            startActivity(Intent.createChooser(send, null))
+        } catch (_: Exception) {
+        }
     }
 
     private fun syncService() {

@@ -37,6 +37,9 @@ object Phrases {
         "sleep" to listOf("Ухожу в сон…", "Спокойной ночи!", "*испаряюсь*"),
         "back" to listOf("Я вернулся!", "Скучал…", "Снова тут!"),
         "wave" to listOf("Привет-привет!", "Помахал!", "Эй, смотри!"),
+        "care" to listOf("Я голодный…", "Покорми меня!", "Поиграй со мной…", "Мне одиноко…"),
+        "remind" to listOf("Попей воды!", "Разомнись немного", "Отдых для глаз!", "Сядь ровно!", "Не забудь поесть"),
+        "shake" to listOf("Ой-ой-ой!", "Землетрясение!", "Ааа, держусь!", "Что это было?!"),
     )
 
     private val EN = mapOf(
@@ -75,6 +78,9 @@ object Phrases {
         "sleep" to listOf("Falling asleep…", "Good night!", "*evaporates*"),
         "back" to listOf("I'm back!", "Miss me?", "Here again!"),
         "wave" to listOf("Hi-hi!", "Waved!", "Hey, look!"),
+        "care" to listOf("I'm hungry…", "Feed me!", "Play with me…", "I'm lonely…"),
+        "remind" to listOf("Drink some water!", "Stretch a bit", "Rest your eyes", "Sit up straight!", "Don't skip lunch"),
+        "shake" to listOf("Whoa-whoa-whoa!", "Earthquake!", "Ahh, holding on!", "What was that?!"),
     )
 
     fun get(lang: String): Map<String, List<String>> = when (lang) {
