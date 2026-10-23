@@ -106,15 +106,21 @@ class TamagotchiActivity : Activity() {
             prefs.tgUpdatedAt = now
             return
         }
-        var touched = false
         if (prefs.tgAlive) {
             val elapsed = now - stored
             if (prefs.tgSleeping) {
+                if (prefs.tgEnergy >= MAX) {
+                    // спит с полной бодростью — время сна не конвертируется в голод
+                    prefs.tgSleeping = false
+                    prefs.tgUpdatedAt = now
+                    return
+                }
                 val regen = (elapsed / SLEEP_REGEN_MS).toInt()
-                if (regen > 0 && prefs.tgEnergy < MAX) {
+                if (regen > 0) {
                     prefs.tgEnergy = prefs.tgEnergy + regen
                     if (prefs.tgEnergy >= MAX) prefs.tgSleeping = false
-                    touched = true
+                    // списываем только потраченное, остаток не сгорает
+                    prefs.tgUpdatedAt = stored + regen * SLEEP_REGEN_MS
                 }
             } else {
                 val lost = (elapsed / DECAY_MS).toInt()
@@ -122,19 +128,20 @@ class TamagotchiActivity : Activity() {
                     prefs.tgHunger -= lost
                     prefs.tgMood -= lost
                     prefs.tgEnergy -= lost
-                    touched = true
+                    prefs.tgUpdatedAt = stored + lost * DECAY_MS
                 }
             }
-            if (prefs.tgAlive && prefs.tgHunger == 0 && prefs.tgMood == 0 && prefs.tgEnergy == 0) {
+            if (prefs.tgAlive && prefs.tgHunger <= 0 && prefs.tgMood <= 0 && prefs.tgEnergy <= 0) {
                 prefs.tgAlive = false
                 prefs.tgSleeping = false
-                touched = true
+                prefs.tgUpdatedAt = now
             }
         }
-        if (touched) prefs.tgUpdatedAt = now
     }
 
     private fun act(kind: String) {
+        if (!prefs.tgAlive) return
+        applyDecay()
         if (!prefs.tgAlive) return
         prefs.tgUpdatedAt = System.currentTimeMillis()
         if (kind == "feed") {

@@ -157,6 +157,15 @@ cp .env .env.local
 
 Внутри студии всё работает без `gradlew`. Если хочется CLI — установи Gradle 8.9 и запусти `gradle :app:assembleRelease` (нужен `ANDROID_HOME` или `local.properties` с `sdk.dir=`).
 
+### Непрерывная интеграция
+
+`.github/workflows/build-apk.yml` собирает debug-APK на `ubuntu-latest` (JDK 17, Gradle 8.9, SDK 35):
+
+- **любой тег `v*`** → APK собирается и публикуется в релиз GitHub с приложенным файлом;
+- **Actions → Build APK** → ручной запуск той же сборки, APK доступен как артефакт.
+
+Используются только action-репозитории GitHub (`actions/*`); Gradle и Android SDK ставятся обычными shell-шагами.
+
 ## Первый запуск
 
 1. В приложении: **«Разрешить поверх других окон»** → системный экран разрешений.

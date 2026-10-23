@@ -52,7 +52,7 @@ class PetService : Service() {
      * системные звуки и звонки игнорируются.
      */
     private val musicCheck: Runnable = Runnable {
-        if (!prefs.dance) {
+        if (!prefs.dance || userHidden) {
             return@Runnable
         }
         val active = try {
@@ -112,6 +112,18 @@ class PetService : Service() {
         return if (Build.VERSION.SDK_INT >= 20) pm.isInteractive else pm.isScreenOn
     }
 
+    /** -1, если уровень недоступен: getIntProperty возвращает 0/минус при ошибке. */
+    private fun readBatteryPercent(): Int {
+        val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
+        val pct = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        return if (pct in 0..100) pct else {
+            val i = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = i?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = i?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level >= 0 && scale > 0) level * 100 / scale else -1
+        }
+    }
+
     private val screenCheck: Runnable = Runnable {
         val interactive = isScreenInteractive()
         overlay?.screenActive = interactive
@@ -133,8 +145,7 @@ class PetService : Service() {
         running = true
         prefs = Prefs(this)
         screenOn = prefs.alwaysVisible || isScreenInteractive()
-        val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
-        batteryLow = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) <= 15
+        batteryLow = readBatteryPercent() in 0..15
         startForeground(NOTIF_ID, buildNotification())
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
@@ -183,6 +194,7 @@ class PetService : Service() {
                 userHidden = false
                 petHidden = false
                 maybeShow()
+                startMusicCheck()
                 refreshNotification()
             }
         }
@@ -213,22 +225,24 @@ class PetService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE,
         )
+        // FLAG_UPDATE_CURRENT обязателен: requestCode один, а action меняется —
+        // без него система возвращает закэшированный первый PendingIntent
         val stop = PendingIntent.getService(
             this, 1,
             Intent(this, PetService::class.java).setAction(ACTION_STOP),
-            PendingIntent.FLAG_IMMUTABLE,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val toggle = if (userHidden) {
             PendingIntent.getService(
                 this, 2,
                 Intent(this, PetService::class.java).setAction(ACTION_SHOW),
-                PendingIntent.FLAG_IMMUTABLE,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
         } else {
             PendingIntent.getService(
                 this, 2,
                 Intent(this, PetService::class.java).setAction(ACTION_HIDE),
-                PendingIntent.FLAG_IMMUTABLE,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
         }
         val toggleLabel = if (userHidden) t["show"] as String else t["hide"] as String

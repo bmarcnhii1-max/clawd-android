@@ -135,15 +135,15 @@ Never commit real API keys. If a credential is ever pushed, revoke it and rotate
 
 ## Releases
 
-Готовые APK лежат в [Releases](https://github.com/bmarcnhii1-max/clawd-android/releases).
+Prebuilt APKs live in [Releases](https://github.com/bmarcnhii1-max/clawd-android/releases).
 
-| Версия | Что внутри |
+| Version | Contents |
 | --- | --- |
-| [v1.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.0) | `app-debug.apk` — debug-сборка (отладочная подпись) |
+| [v1.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.0) | `app-debug.apk` — debug build (debug signing key) |
 
-Установка: скачайте `app-debug.apk`, разрешите установку из неизвестных источников, откройте файл → дайте приложению право «отображать поверх других приложений» → **«Запустить питомца»**.
+Install: download `app-debug.apk`, allow installation from unknown sources, open the file → grant the app the "display over other apps" permission → **"Start pet"**.
 
-Каждый тег `v*` автоматически собирает APK в CI (`.github/workflows/build-apk.yml`) и публикует его в релиз.
+Every `v*` tag automatically builds the APK in CI (`.github/workflows/build-apk.yml`) and publishes it as a release.
 
 ## Building in Android Studio
 
@@ -156,6 +156,15 @@ Requirements: JDK 17 (bundled with Android Studio), minSdk 26 (Android 8.0+), ta
 ### Command line (optional)
 
 Everything works from the IDE without `gradlew`. For CLI builds, install Gradle 8.9 and run `gradle :app:assembleRelease` (requires `ANDROID_HOME` or a `local.properties` containing `sdk.dir=`).
+
+### Continuous integration
+
+`.github/workflows/build-apk.yml` builds the debug APK on `ubuntu-latest` (JDK 17, Gradle 8.9, SDK 35):
+
+- **any `v*` tag** → builds the APK, publishes it as a GitHub release with the APK attached;
+- **Actions → Build APK** → manual run of the same build, with the APK as a downloadable artifact.
+
+Only GitHub-owned actions (`actions/*`) are used; Gradle and the Android SDK are installed with plain shell steps.
 
 ## First run
 

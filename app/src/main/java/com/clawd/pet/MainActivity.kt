@@ -317,7 +317,17 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            return // дождёмся результата, иначе finish() оборвёт диалог
         }
+        launchPetService()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1) launchPetService()
+    }
+
+    private fun launchPetService() {
         startForegroundService(Intent(this, PetService::class.java))
         sendToService(PetService.ACTION_SHOW)
         Toast.makeText(this, t()["started"] as String, Toast.LENGTH_SHORT).show()

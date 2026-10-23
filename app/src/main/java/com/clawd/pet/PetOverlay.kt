@@ -979,9 +979,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     @SuppressLint("ClickableViewAccessibility")
     private fun handleTouch(event: MotionEvent): Boolean {
         if (state == STATE_FLEE) return true
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-            android.util.Log.i("Clawd", "DOWN ${event.rawX},${event.rawY}")
-        }
         val rawX = event.rawX
         val rawY = event.rawY
         val now = uptime()
