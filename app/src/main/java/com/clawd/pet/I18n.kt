@@ -62,6 +62,9 @@ object I18n {
             "no_internet" to "Приложение ничего не отправляет и не просит сеть",
             "settings" to "Настройки",
             "share" to "Поделиться настройками",
+            "wallpaper" to "Окрас под обои",
+            "wallpaper_done" to "Окрас подобран под обои!",
+            "wallpaper_fail" to "Не удалось прочитать обои",
         ),
         "en" to mapOf(
             "language" to "Language",
@@ -123,6 +126,9 @@ object I18n {
             "no_internet" to "The app sends nothing and never asks for network",
             "settings" to "Settings",
             "share" to "Share settings",
+            "wallpaper" to "Match wallpaper",
+            "wallpaper_done" to "Color matched to wallpaper!",
+            "wallpaper_fail" to "Could not read wallpaper",
         ),
     )
 

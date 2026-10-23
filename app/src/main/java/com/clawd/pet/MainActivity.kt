@@ -58,6 +58,7 @@ class MainActivity : Activity() {
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
     private lateinit var btnShare: Button
+    private lateinit var btnWallpaper: Button
     private lateinit var tvHint: TextView
 
     private var suppressListeners = false
@@ -111,6 +112,7 @@ class MainActivity : Activity() {
         btnStart = findViewById(R.id.btnStart)
         btnStop = findViewById(R.id.btnStop)
         btnShare = findViewById(R.id.btnShare)
+        btnWallpaper = findViewById(R.id.btnWallpaper)
         tvHint = findViewById(R.id.tvHint)
     }
 
@@ -163,6 +165,7 @@ class MainActivity : Activity() {
         btnStart.text = ti["start"] as String
         btnStop.text = ti["stop"] as String
         btnShare.text = ti["share"] as String
+        btnWallpaper.text = ti["wallpaper"] as String
         btnTamagotchi.text = ti["tamagotchi"] as String
         btnResetPos.text = ti["reset_pos"] as String
         btnHide.text = if (PetService.petHidden) ti["show"] as String else ti["hide"] as String
@@ -266,6 +269,7 @@ class MainActivity : Activity() {
         btnStart.setOnClickListener { startPet() }
         btnStop.setOnClickListener { stopPet() }
         btnShare.setOnClickListener { shareSettings() }
+        btnWallpaper.setOnClickListener { matchWallpaper() }
     }
 
     private fun resetPosition() {
@@ -345,8 +349,7 @@ class MainActivity : Activity() {
     }
 
     /** Экспорт всех настроек и позиции одной строкой JSON через системный share. */
-    private fun shareSettings() {
-        val pos = if (prefs.positionSaved()) ",\"posX\":${prefs.posX},\"posY\":${prefs.posY}" else ""
+    private fun shareSettings() {        val pos = if (prefs.positionSaved()) ",\"posX\":${prefs.posX},\"posY\":${prefs.posY}" else ""
         val json = "{\"lang\":\"${prefs.lang}\",\"size\":${prefs.size},\"color\":${prefs.color}" +
             ",\"wander\":${prefs.wander},\"phrases\":${prefs.phrases},\"gravity\":${prefs.gravity}" +
             ",\"dance\":${prefs.dance},\"sleepSeconds\":${prefs.sleepSeconds}$pos}"
@@ -358,6 +361,19 @@ class MainActivity : Activity() {
             startActivity(Intent.createChooser(send, null))
         } catch (_: Exception) {
         }
+    }
+
+    /** Разовый подбор окраса под доминирующий цвет обоев. */
+    private fun matchWallpaper() {
+        val idx = WallpaperPalette.matchColorIndex(this)
+        if (idx == null) {
+            Toast.makeText(this, t()["wallpaper_fail"] as String, Toast.LENGTH_SHORT).show()
+            return
+        }
+        prefs.color = idx
+        applyTexts()
+        syncService()
+        Toast.makeText(this, t()["wallpaper_done"] as String, Toast.LENGTH_SHORT).show()
     }
 
     private fun syncService() {
