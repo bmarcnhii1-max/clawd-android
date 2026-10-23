@@ -11,3 +11,5 @@ captures/
 # Real secrets live here — never commit
 .env.local
 .gitmessage
+clawd-release.keystore
+keystore.properties
