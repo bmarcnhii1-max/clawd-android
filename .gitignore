@@ -10,3 +10,4 @@ captures/
 
 # Real secrets live here — never commit
 .env.local
+.gitmessage
