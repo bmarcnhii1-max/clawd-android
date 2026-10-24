@@ -186,6 +186,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private val choreographer = Choreographer.getInstance()
     private var framePending = false
     private var lastFrameStepMs = 0L
+    private var positionDirty = false
     private val idleKick = Runnable { armFrame() }
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -214,8 +215,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
     private fun isActiveFrame(): Boolean =
         state == STATE_FLY || state == STATE_FLEE || state == STATE_WALK ||
-            state == STATE_PET || hopActive || dancing ||
-            dissolve != dissolveTarget
+            state == STATE_DRAG || state == STATE_PET || hopActive || dancing ||
+            positionDirty || dissolve != dissolveTarget
 
     private fun armFrame() {
         if (!added || framePending) return
@@ -1106,7 +1107,9 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                     x += dx
                     y += dy
                     clampXY()
-                    pushWindow()
+                    // Окна двигает только кадр (раз в vsync), иначе 240 событий/с
+                    // кладут главный поток релейаутами. Позицию подхватит step().
+                    positionDirty = true
                     lastInteraction = now
                     touchHist.add(Sample(now, rawX, rawY))
                     while (touchHist.size > 2 && now - touchHist[0].t > 160L) {
