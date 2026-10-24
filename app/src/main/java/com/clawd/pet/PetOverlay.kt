@@ -143,6 +143,12 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private var hitPadX = 0f
     private var hitPadY = 0f
     private var currentRot = 0f
+    // Актуальный размер дисплея и высота навбара. dm из resources на планшетах
+    // при повороте / в multi-window может врать, поэтому перед каждым
+    // вычислением границ читаем свежие значения (WindowMetrics на API 30+).
+    private var dispW = 0
+    private var dispH = 0
+    private var navBarH = 0
     private class Particle(
         val type: String,
         var x: Float,
@@ -202,6 +208,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private fun uptime(): Long = SystemClock.elapsedRealtime()
 
     private fun initMetrics() {
+        refreshDisplaySize()
         unit = Sprite.unitDp(prefs.size) * density
         bodyW = unit * Sprite.GRID_W
         bodyH = unit * Sprite.GRID_H
@@ -290,6 +297,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
     fun show(condense: Boolean = false) {
         if (added) return
+        refreshDisplaySize()
         state = STATE_IDLE
         look = 0
         dissolve = if (condense) 1f else 0f
@@ -377,14 +385,29 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         prefs.posY = Int.MIN_VALUE
         cancelFlee()
         state = STATE_IDLE
+        look = 0
+        dissolve = 0f
+        dissolveTarget = 0f
+        bubbleText = null
+        bubbleUntil = 0L
         hopActive = false
         hopOff = 0f
         hopVy = 0f
         vx = 0f
         vy = 0f
+        tapTimes.clear()
+        lastTap = 0L
+        lastInteraction = uptime()
+        nextBlink = uptime() + 2000L
+        nextAction = uptime() + 4000L
+        initMetrics()
         restorePos()
+        savePos()
         pushWindow()
+        view.requestLayout()
+        hitView.requestLayout()
         view.invalidate()
+        hitView.invalidate()
     }
 
     private fun cancelFlee() {
@@ -963,16 +986,37 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     // screen edges, including the area right above the navigation bar.
     private fun minX(): Float = -margin
 
-    private fun maxX(): Float = dm.widthPixels - viewW + margin
+    private fun maxX(): Float = dispW - viewW + margin
 
-    private val navBarHeight: Int by lazy {
+    private fun refreshDisplaySize() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            val b = wm.currentWindowMetrics.bounds
+            dispW = b.width()
+            dispH = b.height()
+        } else {
+            @Suppress("DEPRECATION")
+            val m = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getMetrics(m)
+            dispW = m.widthPixels
+            dispH = m.heightPixels
+        }
         val res = context.resources
         val id = res.getIdentifier("navigation_bar_height", "dimen", "android")
-        if (id > 0) res.getDimensionPixelSize(id) else (48f * density).toInt()
+        navBarH = if (id > 0) res.getDimensionPixelSize(id) else (48f * density).toInt()
+    }
+
+    /** Поворот / смена конфигурации: пересчитать метрики и переприжать окно. */
+    fun onDisplayChanged() {
+        initMetrics()
+        clampXY()
+        pushWindow()
+        view.invalidate()
+        hitView.invalidate()
     }
 
     private fun maxY(): Float =
-        max(minX(), dm.heightPixels - navBarHeight - viewH + margin)
+        max(minX(), dispH - navBarH - viewH + margin)
 
     private fun clampXY() {
         x = x.coerceIn(minX(), max(minX(), maxX()))

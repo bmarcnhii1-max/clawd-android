@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Build
@@ -255,7 +256,10 @@ class PetService : Service() {
                 overlay?.applyConfig()
                 startMusicCheck()
             }
-            ACTION_RESET_POS -> overlay?.resetPosition()
+            ACTION_RESET_POS -> {
+                overlay?.resetPosition()
+                if (!userHidden) maybeShow()
+            }
             ACTION_HIDE -> {
                 userHidden = true
                 petHidden = true
@@ -271,6 +275,11 @@ class PetService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        overlay?.onDisplayChanged()
     }
 
     override fun onDestroy() {
