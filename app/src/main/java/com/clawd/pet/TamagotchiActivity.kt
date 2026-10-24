@@ -20,6 +20,7 @@ import android.widget.TextView
 import android.widget.Toast
 import java.security.MessageDigest
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class TamagotchiActivity : Activity() {
 
@@ -503,7 +504,7 @@ class TamagotchiActivity : Activity() {
         }
         root.addView(pet, 2)
         val bar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 30
+            max = 180
             progress = 0
             progressDrawable = resources.getDrawable(R.drawable.bar_track, theme)
             layoutParams = LinearLayout.LayoutParams(
@@ -533,12 +534,12 @@ class TamagotchiActivity : Activity() {
                 if (over || !holding) return
                 ticks++
                 bar.progress = ticks
-                status.text = (ti["tg_hold_progress"] as String).format(ticks * 100 / 30)
-                if (ticks >= 30) {
+                status.text = (ti["tg_hold_progress"] as String).format(ticks * 100 / 180)
+                if (ticks >= 180) {
                     win()
                     return
                 }
-                handler.postDelayed(this, 100L)
+                handler.postDelayed(this, 16L)
             }
         }
         jobs.add(step)
@@ -689,7 +690,7 @@ class TamagotchiActivity : Activity() {
                 )
                 pet.scaleX = scale
                 pet.scaleY = scale
-                handler.postDelayed(this, 50L)
+                handler.postDelayed(this, 16L)
             }
         }
         val timeout = Runnable {
@@ -746,6 +747,7 @@ class TamagotchiActivity : Activity() {
         }
         root.addView(grab)
         var pos = 0
+        var posF = 0f
         var dir = 4
         var tries = 3
         var over = false
@@ -782,16 +784,17 @@ class TamagotchiActivity : Activity() {
         val slide = object : Runnable {
             override fun run() {
                 if (over) return
-                pos += dir
-                if (pos >= 100) {
-                    pos = 100
+                posF += dir / 3f
+                if (posF >= 100f) {
+                    posF = 100f
                     dir = -dir
-                } else if (pos <= 0) {
-                    pos = 0
+                } else if (posF <= 0f) {
+                    posF = 0f
                     dir = -dir
                 }
+                pos = posF.roundToInt()
                 bar.progress = pos
-                handler.postDelayed(this, 60L)
+                handler.postDelayed(this, 20L)
             }
         }
         jobs.add(slide)

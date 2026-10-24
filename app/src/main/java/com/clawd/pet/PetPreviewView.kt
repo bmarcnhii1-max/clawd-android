@@ -18,7 +18,8 @@ class PetPreviewView @JvmOverloads constructor(
     private var unit = 0f
     private var colorIndex = 0
     private var sizeIndex = 1
-    private var phase = 0L
+    private var phase = 0f
+    private var lastPuffStep = 0L
     private var running = true
     private var visible = true
     private var mode = MODE_ALIVE
@@ -121,8 +122,9 @@ class PetPreviewView @JvmOverloads constructor(
         super.onDraw(canvas)
         val alive = mode == MODE_ALIVE || mode == MODE_SAD
         if (alive && running && visible) {
-            phase = (phase + 1) % 60
-            postInvalidateDelayed(50L)
+            // 60 fps, но фаза идёт тем же темпом (цикл 3 с): шаг 1/3 за кадр.
+            phase = (phase + 1f / 3f) % 60f
+            postInvalidateDelayed(16L)
         }
         val d = resources.displayMetrics.density
         val u = Sprite.unitDp(sizeIndex) * d
@@ -145,8 +147,8 @@ class PetPreviewView @JvmOverloads constructor(
         } else {
             0f
         }
-        val blink = animating && phase in 30..32
-        val walk = animating && phase < 30
+        val blink = animating && phase in 30f..33f
+        val walk = animating && phase < 30f
         val zzz = mode == MODE_SLEEP
 
 
@@ -221,6 +223,10 @@ class PetPreviewView @JvmOverloads constructor(
 
         if (puffs.isNotEmpty()) {
             val now = System.nanoTime() / 1_000_000L
+            // Частицы привязаны к времени: при 60 fps шаг в 3 раза меньше.
+            val dtF = if (lastPuffStep == 0L) 1f
+            else ((now - lastPuffStep).coerceIn(1L, 100L)) / 50f
+            lastPuffStep = now
             val it = puffs.iterator()
             while (it.hasNext()) {
                 val p = it.next()
@@ -230,15 +236,15 @@ class PetPreviewView @JvmOverloads constructor(
                     continue
                 }
                 val t = age / 20f
-                p.px += (p.vx / 60f) * t
-                p.py += (p.vy / 60f) * t
-                p.vy += if (p.side) 0.18f * u * t else -0.06f * u * t
+                p.px += (p.vx / 60f) * t * dtF
+                p.py += (p.vy / 60f) * t * dtF
+                p.vy += (if (p.side) 0.18f * u * t else -0.06f * u * t) * dtF
                 paint.color = p.color
                 paint.alpha = (255 * (1f - age / p.ttl)).toInt().coerceIn(0, 255)
                 canvas.drawRect(p.px - u * 0.7f, p.py - u * 0.7f, p.px + u * 0.7f, p.py + u * 0.7f, paint)
                 paint.alpha = 255
             }
-            if (visible) postInvalidateDelayed(50L)
+            if (visible) postInvalidateDelayed(16L)
         }
     }
 

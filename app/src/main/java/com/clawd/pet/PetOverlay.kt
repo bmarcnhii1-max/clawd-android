@@ -39,14 +39,15 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
         const val WALK_SPEED = 8f
         const val TOUCH_SLOP = 14f
-        const val TICK_ACTIVE = 40L
+        // Адаптивный FPS: 60 в движении (полёт/шаг/гладят/танец — секунды),
+        // в покое 4, во сне ~1. pushWindow и так пропускает лишний updateViewLayout.
+        const val TICK_ACTIVE = 16L
         const val TICK_IDLE = 250L
         const val TICK_SLEEP = 1200L
         const val BUBBLE_MS = 2600L
         const val DRAG_MS = 1800L
         const val DREAM_MS = 5000L
         const val PET_HOLD_MS = 450L
-        const val MENU_HOLD_MS = 1800L
         const val FLEE_HIDE_MS = 20000L
         const val TAP_WINDOW_MS = 2500L
         const val ANNOYED_TAPS = 4
@@ -344,8 +345,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     fun hide() {
         handler.removeCallbacks(tickRunnable)
         handler.removeCallbacks(returnRunnable)
-        handler.removeCallbacks(menuRunnable)
-        hideMenu()
         if (added) {
             savePos()
             try {
@@ -888,79 +887,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         say("shake")
     }
 
-    private var menuView: android.widget.LinearLayout? = null
-    private val menuDismiss = Runnable { hideMenu() }
-    var menuRequest: (() -> Unit)? = null
-    private val menuRunnable = Runnable {
-        if (added && state != STATE_FLEE) menuRequest?.invoke()
-    }
-
-    /** Небольшое всплывающее меню над питомцем: (подпись, ключ) → колбэк. */
-    fun showMenu(items: List<Pair<String, String>>, onPick: (String) -> Unit) {
-        hideMenu()
-        val bg = android.graphics.drawable.GradientDrawable().apply {
-            setColor(0xF21C1D22.toInt())
-            cornerRadius = 14f * density
-            setStroke(1, 0x33FFFFFF)
-        }
-        val ll = android.widget.LinearLayout(context).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            background = bg
-            setPadding((10f * density).toInt(), (6f * density).toInt(), (10f * density).toInt(), (6f * density).toInt())
-        }
-        for ((label, key) in items) {
-            ll.addView(
-                android.widget.TextView(context).apply {
-                    text = label
-                    textSize = 14f
-                    setTextColor(0xFFEDEDED.toInt())
-                    setPadding(
-                        (12f * density).toInt(),
-                        (12f * density).toInt(),
-                        (12f * density).toInt(),
-                        (12f * density).toInt(),
-                    )
-                    setOnClickListener {
-                        hideMenu()
-                        onPick(key)
-                    }
-                },
-            )
-        }
-        val wSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        val hSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        ll.measure(wSpec, hSpec)
-        val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT,
-        )
-        lp.gravity = Gravity.TOP or Gravity.START
-        lp.x = (x + viewW / 2f - ll.measuredWidth / 2f).roundToInt()
-            .coerceIn(0, max(0, dm.widthPixels - ll.measuredWidth))
-        lp.y = (y + bodyTop() - 10f * density - ll.measuredHeight).roundToInt()
-            .coerceIn(0, max(0, dm.heightPixels - ll.measuredHeight))
-        try {
-            wm.addView(ll, lp)
-            menuView = ll
-            handler.postDelayed(menuDismiss, 7000L)
-        } catch (_: Exception) {
-        }
-    }
-
-    fun hideMenu() {
-        handler.removeCallbacks(menuDismiss)
-        menuView?.let {
-            try {
-                wm.removeView(it)
-            } catch (_: Exception) {
-            }
-        }
-        menuView = null
-    }
-
     fun setDance(active: Boolean) {
         val want = active && prefs.dance
         if (dancing == want) return
@@ -1137,7 +1063,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                 lastInteraction = now
                 if (state == STATE_SLEEP) wake()
                 handler.postDelayed(petRunnable, PET_HOLD_MS)
-                handler.postDelayed(menuRunnable, MENU_HOLD_MS)
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = rawX - prevRawX
@@ -1145,7 +1070,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                 if (!moved && (abs(rawX - downRawX) > TOUCH_SLOP * density || abs(rawY - downRawY) > TOUCH_SLOP * density)) {
                     moved = true
                     handler.removeCallbacks(petRunnable)
-                    handler.removeCallbacks(menuRunnable)
                     state = STATE_DRAG
                     if (!dragSaid) {
                         dragSaid = true
@@ -1174,7 +1098,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 handler.removeCallbacks(petRunnable)
-                handler.removeCallbacks(menuRunnable)
                 val cancelled = event.actionMasked == MotionEvent.ACTION_CANCEL
                 val dtSec = (now - downT) / 1000f
                 if (cancelled) {

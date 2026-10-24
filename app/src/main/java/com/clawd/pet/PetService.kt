@@ -117,32 +117,6 @@ class PetService : Service() {
         override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
     }
 
-    private fun showQuickMenu() {
-        val t = I18n.t(prefs.lang)
-        overlay?.showMenu(
-            listOf(
-                t["tamagotchi"] as String to "tamagotchi",
-                t["hide"] as String to "hide",
-                t["settings"] as String to "settings",
-            ),
-        ) { key ->
-            when (key) {
-                "hide" -> {
-                    userHidden = true
-                    petHidden = true
-                    overlay?.hide()
-                    refreshNotification()
-                }
-                "tamagotchi" -> startActivity(
-                    Intent(this, TamagotchiActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
-                "settings" -> startActivity(
-                    Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
-            }
-        }
-    }
-
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context, intent: Intent) {
             when (intent.action) {
@@ -226,7 +200,6 @@ class PetService : Service() {
         }
         overlay = PetOverlay(this, prefs)
         overlay?.screenActive = isScreenInteractive()
-        overlay?.menuRequest = { showQuickMenu() }
         maybeShow()
         startMusicCheck()
         handler.postDelayed(screenCheck, 1500L)
