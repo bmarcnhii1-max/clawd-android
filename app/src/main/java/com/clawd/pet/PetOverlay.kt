@@ -197,6 +197,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                 if (isActiveFrame()) {
                     lastFrameStepMs = nowMs
                     step()
+                    positionDirty = false
                     armFrame()
                 } else {
                     val gap = if (state == STATE_SLEEP) 1000L else 50L
@@ -566,7 +567,11 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         }
 
         if (dancing) {
-            if (!hopActive && now >= danceNext) {
+            // Танцевальный прыжок — только когда стоим/гуляем: из-под пальца
+            // (драг) и из-под глажки не выпрыгиваем.
+            if (!hopActive && now >= danceNext &&
+                (state == STATE_IDLE || state == STATE_WALK)
+            ) {
                 danceNext = now + DANCE_BEAT_MS
                 hop(45f)
                 if (random.nextFloat() < 0.2f) spawnParticle("spark")
