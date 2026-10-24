@@ -139,6 +139,7 @@ cp .env .env.local
 
 | Версия | Что внутри |
 | --- | --- |
+| [v1.3.2](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.2) | `clawd-1.3.2-release.apk` — подписанный релиз (ключ Clawd Pet); `app-debug.apk` — debug-сборка |
 | [v1.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.0) | `app-debug.apk` — debug-сборка (отладочная подпись) |
 
 Установка: скачайте `app-debug.apk`, разрешите установку из неизвестных источников, откройте файл → дайте приложению право «отображать поверх других приложений» → **«Запустить питомца»**.

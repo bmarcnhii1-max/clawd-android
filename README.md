@@ -139,6 +139,7 @@ Prebuilt APKs live in [Releases](https://github.com/bmarcnhii1-max/clawd-android
 
 | Version | Contents |
 | --- | --- |
+| [v1.3.2](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.2) | `clawd-1.3.2-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.0) | `app-debug.apk` — debug build (debug signing key) |
 
 Install: download `app-debug.apk`, allow installation from unknown sources, open the file → grant the app the "display over other apps" permission → **"Start pet"**.
