@@ -139,7 +139,9 @@ cp .env .env.local
 
 | Версия | Что внутри |
 | --- | --- |
+| [v1.3.4](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.4) | `clawd-1.3.4-release.apk` — подписанный релиз (ключ Clawd Pet); `app-debug.apk` — debug-сборка |
 | [v1.3.3](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.3) | `clawd-1.3.3-release.apk` — подписанный релиз (ключ Clawd Pet); `app-debug.apk` — debug-сборка |
+| [v1.3.2](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.2) | `clawd-1.3.2-release.apk` — подписанный релиз (ключ Clawd Pet); `app-debug.apk` — debug-сборка |
 | [v1.3.2](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.2) | `clawd-1.3.2-release.apk` — подписанный релиз (ключ Clawd Pet); `app-debug.apk` — debug-сборка |
 | [v1.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.0) | `app-debug.apk` — debug-сборка (отладочная подпись) |
 
