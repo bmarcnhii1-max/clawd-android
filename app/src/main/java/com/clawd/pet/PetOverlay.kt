@@ -13,6 +13,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.text.TextPaint
 import android.text.TextUtils
+import android.view.Choreographer
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -39,11 +40,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
         const val WALK_SPEED = 8f
         const val TOUCH_SLOP = 14f
-        // Адаптивный FPS: 60 в движении (полёт/шаг/гладят/танец — секунды),
-        // в покое 4, во сне ~1. pushWindow и так пропускает лишний updateViewLayout.
-        const val TICK_ACTIVE = 16L
-        const val TICK_IDLE = 250L
-        const val TICK_SLEEP = 1200L
         const val BUBBLE_MS = 2600L
         const val DRAG_MS = 1800L
         const val DREAM_MS = 5000L
@@ -185,11 +181,52 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private var heartScale = 4
     private var heartW = 0f
 
-    private val tickRunnable = object : Runnable {
-        override fun run() {
-            step()
-            schedule()
+    // Цикл на Choreographer: кадры ровно по vsync, без дёрганья Handler.postDelayed.
+    // Движение — каждый кадр, покой — не чаще 20 fps, сон — раз в секунду.
+    private val choreographer = Choreographer.getInstance()
+    private var framePending = false
+    private var lastFrameStepMs = 0L
+    private val idleKick = Runnable { armFrame() }
+    private val frameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            framePending = false
+            if (!added) return
+            try {
+                val nowMs = frameTimeNanos / 1_000_000L
+                if (isActiveFrame()) {
+                    lastFrameStepMs = nowMs
+                    step()
+                    armFrame()
+                } else {
+                    val gap = if (state == STATE_SLEEP) 1000L else 50L
+                    if (nowMs - lastFrameStepMs >= gap) {
+                        lastFrameStepMs = nowMs
+                        step()
+                    }
+                    handler.removeCallbacks(idleKick)
+                    handler.postDelayed(idleKick, gap)
+                }
+            } catch (_: Exception) {
+                handler.postDelayed(idleKick, 2000L)
+            }
         }
+    }
+
+    private fun isActiveFrame(): Boolean =
+        state == STATE_FLY || state == STATE_FLEE || state == STATE_WALK ||
+            state == STATE_PET || hopActive || dancing ||
+            dissolve != dissolveTarget
+
+    private fun armFrame() {
+        if (!added || framePending) return
+        framePending = true
+        choreographer.postFrameCallback(frameCallback)
+    }
+
+    private fun unarmFrame() {
+        framePending = false
+        choreographer.removeFrameCallback(frameCallback)
+        handler.removeCallbacks(idleKick)
     }
 
     private val petRunnable = Runnable {
@@ -330,9 +367,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         pushWindow()
         val now = uptime()
         lastInteraction = now
+        lastFrameStepMs = 0L
         nextBlink = now + 2000L
         nextAction = now + 4000L
-        schedule()
+        armFrame()
         handler.postDelayed({
             if (added) {
                 hop(55f)
@@ -343,7 +381,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     fun hide() {
-        handler.removeCallbacks(tickRunnable)
+        unarmFrame()
         handler.removeCallbacks(returnRunnable)
         if (added) {
             savePos()
@@ -442,18 +480,6 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             }
         }
         pushWindow()
-    }
-
-    private fun schedule() {
-        if (!added) return
-        val interval = when {
-            state == STATE_FLY || state == STATE_FLEE || state == STATE_WALK ||
-                state == STATE_PET || hopActive || dancing ||
-                dissolve != dissolveTarget -> TICK_ACTIVE
-            state == STATE_SLEEP -> TICK_SLEEP
-            else -> TICK_IDLE
-        }
-        handler.postDelayed(tickRunnable, interval)
     }
 
     private fun step() {
@@ -644,7 +670,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private fun hideForFlee() {
         if (!added) return
         savePos()
-        handler.removeCallbacks(tickRunnable)
+        unarmFrame()
         try {
             wm.removeView(hitView)
         } catch (_: Exception) {
