@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -18,6 +19,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import java.security.MessageDigest
+import kotlin.math.abs
 
 class TamagotchiActivity : Activity() {
 
@@ -264,26 +266,43 @@ class TamagotchiActivity : Activity() {
             dlg.dismiss()
             draw()
         }
-        pet.setOnClickListener {
-            if (over) return@setOnClickListener
-            caught++
-            score.text = (ti["tg_catch_score"] as String).format(caught)
-            pet.burst(PetPreviewView.BURST_PLAY)
-            if (caught >= 6) finish(true)
-        }
         var side = 1f
-        val hop = object : Runnable {
+        fun hop() {
+            // Амплитуда больше полуширины спрайта: спам в центр экрана промахивается.
+            side = -side
+            pet.translationX = side * dp(90).toFloat()
+        }
+        // Засчитываем только попадание по спрайту, а не тап куда угодно:
+        // вся вьюха широкая, питомец рисуется по центру (PetPreviewView.onDraw: ox).
+        val dCatch = resources.displayMetrics.density
+        val hitHw = Sprite.unitDp(prefs.size) * dCatch * Sprite.GRID_W / 2f + dp(12)
+        val hitHh = Sprite.unitDp(prefs.size) * dCatch * Sprite.GRID_H / 2f + dp(12)
+        pet.setOnTouchListener { _, e ->
+            if (e.action != MotionEvent.ACTION_DOWN) return@setOnTouchListener false
+            if (over) return@setOnTouchListener true
+            if (abs(e.x - pet.width / 2f) <= hitHw &&
+                abs(e.y - pet.height / 2f) <= hitHh
+            ) {
+                caught++
+                score.text = (ti["tg_catch_score"] as String).format(caught)
+                pet.burst(PetPreviewView.BURST_PLAY)
+                if (caught >= 6) finish(true)
+            } else {
+                hop() // мимо: питомец тут же отпрыгивает в другую сторону
+            }
+            true
+        }
+        val hopTick = object : Runnable {
             override fun run() {
                 if (over) return
-                side = -side
-                pet.translationX = side * dp(60).toFloat()
+                hop()
                 handler.postDelayed(this, 380L)
             }
         }
         val timeout = Runnable { finish(false) }
-        jobs.add(hop)
+        jobs.add(hopTick)
         jobs.add(timeout)
-        handler.post(hop)
+        handler.post(hopTick)
         handler.postDelayed(timeout, 12_000L)
         dlg.setOnDismissListener { stop() }
         dlg.show()
