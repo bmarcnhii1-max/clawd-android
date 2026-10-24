@@ -224,6 +224,124 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
+        <!-- Мини-игры: ряд 1 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnTgGame1"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/btnTgGame2"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/btnTgGame3"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/btnTgGame4"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <!-- Мини-игры: ряд 2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnTgGame5"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/btnTgGame6"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/btnTgGame7"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/btnTgGame8"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="10sp" />
+        </LinearLayout>
+
         <!-- Вторая жизнь -->
         <LinearLayout
             android:id="@+id/tgReviveBox"

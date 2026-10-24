@@ -3,6 +3,7 @@ package com.clawd.pet
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -236,6 +237,7 @@ class MainActivity : Activity() {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
                 if (suppressListeners) return
                 prefs.color = position
+                applyPetIcon(position)
                 applyTexts()
                 syncService()
             }
@@ -371,6 +373,7 @@ class MainActivity : Activity() {
             return
         }
         prefs.color = idx
+        applyPetIcon(idx)
         applyTexts()
         syncService()
         Toast.makeText(this, t()["wallpaper_done"] as String, Toast.LENGTH_SHORT).show()
@@ -378,6 +381,25 @@ class MainActivity : Activity() {
 
     private fun syncService() {
         sendToService(PetService.ACTION_APPLY)
+    }
+
+    /** Иконка лаунчера — питомец в выбранном окрасе. */
+    private fun applyPetIcon(index: Int) {
+        val want = Math.floorMod(index, Sprite.count())
+        for (i in 0 until Sprite.count()) {
+            val name = ComponentName(this, "com.clawd.pet.LauncherIcon$i")
+            val state = if (i == want) {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            }
+            try {
+                packageManager.setComponentEnabledSetting(
+                    name, state, PackageManager.DONT_KILL_APP,
+                )
+            } catch (_: Exception) {
+            }
+        }
     }
     override fun onResume() {
         super.onResume()
