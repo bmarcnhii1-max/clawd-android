@@ -143,13 +143,13 @@ Prebuilt APKs live in [Releases](https://github.com/bmarcnhii1-max/clawd-android
 | [v1.3.6](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.6) | `clawd-1.3.6-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.3.4](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.4) | `clawd-1.3.4-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.3.3](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.3) | `clawd-1.3.3-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
-| [v1.3.2](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.2) | `clawd-1.3.2-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
+| [v1.3.5](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.5) | `app-debug.apk` — debug build |
 | [v1.3.2](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.2) | `clawd-1.3.2-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.0) | `app-debug.apk` — debug build (debug signing key) |
 
 Install: download `app-debug.apk`, allow installation from unknown sources, open the file → grant the app the "display over other apps" permission → **"Start pet"**.
 
-Every `v*` tag automatically builds the APK in CI (`.github/workflows/build-apk.yml`) and publishes it as a release.
+Every `v*` tag automatically builds the debug APK in CI (`.github/workflows/build-apk.yml`) and publishes it as a release. Signed `*-release.apk` builds are attached manually and are not produced by CI.
 
 ## Building in Android Studio
 

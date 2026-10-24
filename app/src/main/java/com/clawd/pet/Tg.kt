@@ -21,8 +21,8 @@ object Tg {
         val elapsed = now - stored
         if (prefs.tgSleeping) {
             if (prefs.tgEnergy >= MAX) {
-                // спит с полной бодростью — время сна не конвертируется в голод
-                prefs.tgSleeping = false
+                // Спит с полной бодростью: нечего восполнять, но и будить нельзя —
+                // иначе кнопка «спать» мгновенно отменяется на следующем тике.
                 prefs.tgUpdatedAt = now
                 return
             }

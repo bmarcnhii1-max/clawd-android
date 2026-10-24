@@ -17,6 +17,7 @@ import android.view.Choreographer
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import kotlin.math.abs
 import kotlin.math.exp
@@ -56,7 +57,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private val random = kotlin.random.Random.Default
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val dm = context.resources.displayMetrics
-    private val density = dm.density
+    private var density = dm.density
     private val handler = Handler(Looper.getMainLooper())
 
     private var unit = 6f * density
@@ -128,6 +129,9 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private var petted = false
     private var dragSaid = false
     private var dragVx = 0f
+    private var lastMoveAt = 0L
+    private var nextDragSpark = 0L
+    private var tilt = 0f
 
     private lateinit var view: View
     private lateinit var lp: WindowManager.LayoutParams
@@ -239,6 +243,14 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         say("pet")
     }
 
+    private val greetingRunnable = Runnable {
+        if (added) {
+            hop(55f)
+            waveUntil = uptime() + 1600L
+            say("hello")
+        }
+    }
+
     init {
         initMetrics()
         buildView()
@@ -248,6 +260,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private fun uptime(): Long = SystemClock.elapsedRealtime()
 
     private fun initMetrics() {
+        density = context.resources.displayMetrics.density
+        paintBubbleStroke.strokeWidth = density
         refreshDisplaySize()
         unit = Sprite.unitDp(prefs.size) * density
         bodyW = unit * Sprite.GRID_W
@@ -269,6 +283,9 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         paintBody.color = Sprite.bodyColor(prefs.color)
     }
 
+    // LEFT, а не START: позиция окна оверлея считается от левого края экрана,
+    // и в RTL-локали START зеркалил бы координаты, ломая привязку к пальцу.
+    @SuppressLint("RtlHardcoded")
     private fun buildParams() {
         lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -289,8 +306,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         )
-        lp.gravity = Gravity.TOP or Gravity.START
-        hitLp.gravity = Gravity.TOP or Gravity.START
+        lp.gravity = Gravity.TOP or Gravity.LEFT
+        hitLp.gravity = Gravity.TOP or Gravity.LEFT
         lp.alpha = 0.8f
         if (Build.VERSION.SDK_INT >= 30) {
             lp.fitInsetsTypes = 0
@@ -298,7 +315,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             hitLp.fitInsetsTypes = 0
             hitLp.fitInsetsSides = 0
         }
-        if (Build.VERSION.SDK_INT >= 28) {
+        if (Build.VERSION.SDK_INT >= 30) {
             lp.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             hitLp.layoutInDisplayCutoutMode =
@@ -373,18 +390,15 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         nextBlink = now + 2000L
         nextAction = now + 4000L
         armFrame()
-        handler.postDelayed({
-            if (added) {
-                hop(55f)
-                waveUntil = uptime() + 1600L
-                say("hello")
-            }
-        }, 700L)
+        handler.removeCallbacks(greetingRunnable)
+        handler.postDelayed(greetingRunnable, 700L)
     }
 
     fun hide() {
         unarmFrame()
         handler.removeCallbacks(returnRunnable)
+        handler.removeCallbacks(greetingRunnable)
+        handler.removeCallbacks(petRunnable)
         if (added) {
             savePos()
             try {
@@ -497,10 +511,12 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             stepHop(dt)
             stepDissolve(now, dt)
             stepParticles(now, dt)
+            stepTilt(dt)
             pushWindow()
         } catch (_: Exception) {
         }
         view.invalidate()
+        hitView.invalidate()
     }
 
     private fun stepGround(now: Long, dt: Float) {
@@ -549,8 +565,13 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             return
         }
 
+        // Пока питомца держат, он не гуляет, не прыгает и не засыпает.
+        if (state == STATE_DRAG) return
+
         val timeout = prefs.sleepSeconds
-        if (timeout > 0 && now - lastInteraction > timeout * 1000L && !hopActive && !dancing) {
+        if (timeout > 0 && now - lastInteraction > timeout * 1000L &&
+            !hopActive && !dancing
+        ) {
             state = STATE_SLEEP
             look = 0
             nextZ = now + 600L
@@ -567,8 +588,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         }
 
         if (dancing) {
-            // Танцевальный прыжок — только когда стоим/гуляем: из-под пальца
-            // (драг) и из-под глажки не выпрыгиваем.
+            // Танцевальный прыжок — только когда стоим/гуляем.
             if (!hopActive && now >= danceNext &&
                 (state == STATE_IDLE || state == STATE_WALK)
             ) {
@@ -629,8 +649,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             vx = -abs(vx) * 0.55f
             squashUntil = uptime() + 80L
         }
-        if (y < minX()) {
-            y = minX()
+        if (y < minY()) {
+            y = minY()
             vy = abs(vy) * 0.55f
         }
         val bottom = maxY()
@@ -944,13 +964,17 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     // screen edges, including the area right above the navigation bar.
     private fun minX(): Float = -margin
 
+    private fun minY(): Float = -margin
+
     private fun maxX(): Float = dispW - viewW + margin
 
+    @SuppressLint("InternalInsetResource", "DiscouragedApi")
     private fun refreshDisplaySize() {
         if (Build.VERSION.SDK_INT >= 30) {
-            val b = wm.currentWindowMetrics.bounds
-            dispW = b.width()
-            dispH = b.height()
+            val metrics = wm.currentWindowMetrics
+            dispW = metrics.bounds.width()
+            dispH = metrics.bounds.height()
+            navBarH = metrics.windowInsets.getInsets(WindowInsets.Type.navigationBars()).bottom
         } else {
             @Suppress("DEPRECATION")
             val m = android.util.DisplayMetrics()
@@ -958,10 +982,11 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             wm.defaultDisplay.getMetrics(m)
             dispW = m.widthPixels
             dispH = m.heightPixels
+            // До API 30 WindowMetrics не отдаёт инсеты — берём системный размер навбара.
+            val res = context.resources
+            val id = res.getIdentifier("navigation_bar_height", "dimen", "android")
+            navBarH = if (id > 0) res.getDimensionPixelSize(id) else (48f * density).toInt()
         }
-        val res = context.resources
-        val id = res.getIdentifier("navigation_bar_height", "dimen", "android")
-        navBarH = if (id > 0) res.getDimensionPixelSize(id) else (48f * density).toInt()
     }
 
     /** Поворот / смена конфигурации: пересчитать метрики и переприжать окно. */
@@ -969,26 +994,28 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         initMetrics()
         clampXY()
         pushWindow()
+        view.requestLayout()
+        hitView.requestLayout()
         view.invalidate()
         hitView.invalidate()
     }
 
     private fun maxY(): Float =
-        max(minX(), dispH - navBarH - viewH + margin)
+        max(minY(), dispH - navBarH - viewH + margin)
 
     private fun clampXY() {
         x = x.coerceIn(minX(), max(minX(), maxX()))
-        y = y.coerceIn(minX(), max(minX(), maxY()))
+        y = y.coerceIn(minY(), max(minY(), maxY()))
     }
 
     private fun restorePos() {
         clampXY()
         if (prefs.positionSaved()) {
             x = prefs.posX.toFloat().coerceIn(minX(), max(minX(), maxX()))
-            y = prefs.posY.toFloat().coerceIn(minX(), max(minX(), maxY()))
+            y = prefs.posY.toFloat().coerceIn(minY(), max(minY(), maxY()))
         } else {
             x = max(minX(), maxX() - unit * 3f)
-            y = max(minX(), maxY())
+            y = max(minY(), maxY())
         }
     }
 
@@ -1030,7 +1057,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         } else {
             floatArrayOf(1f, 2f, 16f, 11f)
         }
-        val rad = Math.toRadians(rot.toDouble())
+        // В полёте и при перетаскивании окно сразу берёт запас под максимальный наклон:
+        // размер не меняется каждый кадр, поэтому drag остаётся плавным.
+        val geoRot = if (state == STATE_DRAG || state == STATE_FLY) 25f else rot
+        val rad = Math.toRadians(geoRot.toDouble())
         val cos = abs(kotlin.math.cos(rad).toFloat())
         val sin = abs(kotlin.math.sin(rad).toFloat())
         val wCells = cw * cos + ch * sin
@@ -1090,6 +1120,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                 petted = false
                 dragSaid = false
                 dragVx = 0f
+                lastMoveAt = 0L
+                nextDragSpark = 0L
                 touchHist.clear()
                 touchHist.add(Sample(now, rawX, rawY))
                 lastInteraction = now
@@ -1103,6 +1135,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                     moved = true
                     handler.removeCallbacks(petRunnable)
                     state = STATE_DRAG
+                    // Подхват: тело на миг приседает, как будто его оторвали от земли.
+                    squashUntil = now + 140L
                     if (!dragSaid) {
                         dragSaid = true
                         say("drag", DRAG_MS)
@@ -1116,6 +1150,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                     // кладут главный поток релейаутами. Позицию подхватит step().
                     positionDirty = true
                     lastInteraction = now
+                    lastMoveAt = now
                     touchHist.add(Sample(now, rawX, rawY))
                     while (touchHist.size > 2 && now - touchHist[0].t > 160L) {
                         touchHist.removeAt(0)
@@ -1124,7 +1159,14 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                         val a = touchHist[touchHist.size - 2]
                         val b = touchHist[touchHist.size - 1]
                         val dt = (b.t - a.t) / 1000f
-                        if (dt > 0.005f) dragVx = (b.x - a.x) / dt
+                        if (dt > 0.005f) {
+                            dragVx = (b.x - a.x) / dt
+                            val speed = hypot(dragVx, (b.y - a.y) / dt)
+                            if (now >= nextDragSpark && speed > unit * 26f) {
+                                nextDragSpark = now + 140L
+                                spawnParticle("spark")
+                            }
+                        }
                     }
                 }
                 prevRawX = rawX
@@ -1181,18 +1223,23 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     private fun rotationDeg(): Float {
-        val now = uptime()
-        if (state == STATE_FLY) {
-            return (vx / unit / 5.6f).coerceIn(-25f, 25f)
-        }
         if (state == STATE_FLEE) return 0f
-        if (expr == "dizzy" && now < exprUntil) {
-            return sin(now / 1000f * 10f) * 7f
+        return tilt
+    }
+
+    /** Плавный наклон: цель зависит от скорости, само значение догоняет её пружиной. */
+    private fun stepTilt(dt: Float) {
+        val now = uptime()
+        val target = when {
+            state == STATE_FLEE -> 0f
+            state == STATE_FLY -> (vx / unit / 5.6f).coerceIn(-25f, 25f)
+            state == STATE_DRAG ->
+                if (now - lastMoveAt <= 90L) (dragVx / unit / 5.6f).coerceIn(-20f, 20f) else 0f
+            expr == "dizzy" && now < exprUntil -> sin(now / 1000f * 10f) * 7f
+            else -> 0f
         }
-        if (state == STATE_DRAG && dragVx != 0f) {
-            return (dragVx / unit / 5.6f).coerceIn(-18f, 18f)
-        }
-        return 0f
+        tilt += (target - tilt) * (1f - exp(-14f * dt))
+        if (abs(tilt) < 0.05f && target == 0f) tilt = 0f
     }
 
     private fun drawPetBody(canvas: Canvas) {
@@ -1205,7 +1252,14 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         var mouth: String? = null
 
         when (state) {
-            STATE_DRAG, STATE_FLY, STATE_FLEE -> {
+            STATE_DRAG -> {
+                // Взяли на руки: лапы болтаются вразнобой, руки машут от рывков.
+                eyes = "surprised"
+                val beat = (now / 170L) % 2L == 0L
+                arms = if (beat) "wave1" else "wave2"
+                legs = if (beat) "dangle1" else "dangle2"
+            }
+            STATE_FLY, STATE_FLEE -> {
                 eyes = "surprised"
                 arms = "up"
                 legs = "dangle"
@@ -1392,6 +1446,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             "walk1" -> intArrayOf(1, 2, 1, 2)
             "walk2" -> intArrayOf(2, 1, 2, 1)
             "dangle" -> intArrayOf(3, 3, 3, 3)
+            "dangle1" -> intArrayOf(3, 2, 3, 2)
+            "dangle2" -> intArrayOf(2, 3, 2, 3)
             "tuck" -> intArrayOf(1, 1, 1, 1)
             else -> intArrayOf(2, 2, 2, 2)
         }

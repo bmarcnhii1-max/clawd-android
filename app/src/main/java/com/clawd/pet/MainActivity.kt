@@ -76,6 +76,9 @@ class MainActivity : Activity() {
         populate()
         applyTexts()
         listeners()
+        // После переустановки/очистки лаунчера активная иконка может не совпадать
+        // с сохранённым окрасом — синхронизируем при каждом запуске.
+        applyPetIcon(prefs.color)
     }
 
     private fun bindViews() {
@@ -284,7 +287,8 @@ class MainActivity : Activity() {
     private fun toggleHide() {
         val action = if (PetService.petHidden) PetService.ACTION_SHOW else PetService.ACTION_HIDE
         sendToService(action)
-        applyTexts()
+        // Состояние придёт из сервиса через stateListener: статическое поле
+        // обновится не в момент startService, а после обработки команды.
     }
 
     private fun sendToService(action: String) {
@@ -334,6 +338,8 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // Отказ в уведомлениях не мешает foreground-сервису: он просто
+        // не покажет уведомление в шторке, поэтому запускаем в любом случае.
         if (requestCode == 1) launchPetService()
     }
 
@@ -367,16 +373,25 @@ class MainActivity : Activity() {
 
     /** Разовый подбор окраса под доминирующий цвет обоев. */
     private fun matchWallpaper() {
-        val idx = WallpaperPalette.matchColorIndex(this)
-        if (idx == null) {
-            Toast.makeText(this, t()["wallpaper_fail"] as String, Toast.LENGTH_SHORT).show()
-            return
-        }
-        prefs.color = idx
-        applyPetIcon(idx)
-        applyTexts()
-        syncService()
-        Toast.makeText(this, t()["wallpaper_done"] as String, Toast.LENGTH_SHORT).show()
+        if (!btnWallpaper.isEnabled) return
+        btnWallpaper.isEnabled = false
+        // На API < 31 обои декодируются в битмап — это нельзя делать в UI-потоке.
+        Thread {
+            val idx = WallpaperPalette.matchColorIndex(this)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                btnWallpaper.isEnabled = true
+                if (idx == null) {
+                    Toast.makeText(this, t()["wallpaper_fail"] as String, Toast.LENGTH_SHORT).show()
+                    return@runOnUiThread
+                }
+                prefs.color = idx
+                applyPetIcon(idx)
+                applyTexts()
+                syncService()
+                Toast.makeText(this, t()["wallpaper_done"] as String, Toast.LENGTH_SHORT).show()
+            }
+        }.start()
     }
 
     private fun syncService() {
@@ -394,6 +409,7 @@ class MainActivity : Activity() {
                 PackageManager.COMPONENT_ENABLED_STATE_DISABLED
             }
             try {
+                if (packageManager.getComponentEnabledSetting(name) == state) continue
                 packageManager.setComponentEnabledSetting(
                     name, state, PackageManager.DONT_KILL_APP,
                 )
@@ -401,6 +417,18 @@ class MainActivity : Activity() {
             }
         }
     }
+    override fun onStart() {
+        super.onStart()
+        // Сервис живёт в том же процессе: после действий из шторки
+        // (скрыть/показать/остановить) экран обновляется сам.
+        PetService.stateListener = { applyTexts() }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        PetService.stateListener = null
+    }
+
     override fun onResume() {
         super.onResume()
         applyTexts()

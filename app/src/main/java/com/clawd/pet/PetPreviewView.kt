@@ -25,7 +25,7 @@ class PetPreviewView @JvmOverloads constructor(
     private var mode = MODE_ALIVE
     private var vigor = 1f
     private val puffs = ArrayList<Puff>()
-    private val random = java.util.Random()
+    private val random = kotlin.random.Random.Default
 
     private class Puff(
         val x: Float,
@@ -86,7 +86,7 @@ class PetPreviewView @JvmOverloads constructor(
                     vy0 = if (fromTop) -u * (1.6f + random.nextFloat() * 2f)
                     else -u * (0.6f + random.nextFloat() * 1.2f),
                     born = now,
-                    ttl = 900L + random.nextLong(500),
+                    ttl = 900L + random.nextLong(500L),
                     side = fromTop,
                     color = if (fromTop) 0xFFD97757.toInt() else 0xFF7BC996.toInt(),
                 ),
@@ -121,10 +121,11 @@ class PetPreviewView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val alive = mode == MODE_ALIVE || mode == MODE_SAD
-        if (alive && running && visible) {
+        val sleeping = mode == MODE_SLEEP
+        if ((alive || sleeping) && running && visible) {
             // 60 fps, но фаза идёт тем же темпом (цикл 3 с): шаг 1/3 за кадр.
             phase = (phase + 1f / 3f) % 60f
-            postInvalidateDelayed(16L)
+            postInvalidateDelayed(if (alive) 16L else 40L)
         }
         val d = resources.displayMetrics.density
         val u = Sprite.unitDp(sizeIndex) * d

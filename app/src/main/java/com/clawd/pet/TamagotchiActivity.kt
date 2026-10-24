@@ -31,6 +31,7 @@ class TamagotchiActivity : Activity() {
     private lateinit var prefs: Prefs
     private var lang = "ru"
     private val handler = Handler(Looper.getMainLooper())
+    private val dialogs = ArrayList<AlertDialog>()
 
     private lateinit var tvTitle: TextView
     private lateinit var tvStatus: TextView
@@ -121,8 +122,19 @@ class TamagotchiActivity : Activity() {
     }
 
     override fun onDestroy() {
-        handler.removeCallbacks(tick)
+        handler.removeCallbacksAndMessages(null)
+        // Игровые диалоги не закрываются сами при повороте экрана:
+        // вместе с Activity они утекали бы окном поверх новой копии.
+        dialogs.toList().forEach { runCatching { it.dismiss() } }
+        dialogs.clear()
         super.onDestroy()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Виджет живёт своей жизнью и обновляется раз в 30 минут,
+        // поэтому сообщаем ему актуальные статы при уходе с экрана.
+        PetWidgetProvider.refresh(this)
     }
 
     /**
@@ -190,6 +202,12 @@ class TamagotchiActivity : Activity() {
         dlg.setOnShowListener {
             dlg.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         }
+    }
+
+    private fun showDialog(dlg: AlertDialog) {
+        dialogs.removeAll { !it.isShowing }
+        dialogs.add(dlg)
+        dlg.show()
     }
 
     private data class Shell(val root: LinearLayout, val status: TextView, val dlg: AlertDialog)
@@ -306,7 +324,7 @@ class TamagotchiActivity : Activity() {
         handler.post(hopTick)
         handler.postDelayed(timeout, 12_000L)
         dlg.setOnDismissListener { stop() }
-        dlg.show()
+        showDialog(dlg)
     }
 
     /** Игра 2 «Напёрстки»: угадать, под каким стаканом спрятался питомец. */
@@ -357,7 +375,7 @@ class TamagotchiActivity : Activity() {
             }
             row.addView(b)
         }
-        dlg.show()
+        showDialog(dlg)
     }
 
     /** Игра 3 «Повтори»: симон на трёх кнопках, ряды длиной 3 и 4. */
@@ -480,7 +498,7 @@ class TamagotchiActivity : Activity() {
             }
         }
         dlg.setOnDismissListener { stop() }
-        dlg.show()
+        showDialog(dlg)
         nextRound()
     }
 
@@ -566,7 +584,7 @@ class TamagotchiActivity : Activity() {
             }
         }
         dlg.setOnDismissListener { stop() }
-        dlg.show()
+        showDialog(dlg)
     }
 
     /** Игра 5 «Меткий»: попади по огоньку 5 раз за 12 секунд. */
@@ -640,7 +658,7 @@ class TamagotchiActivity : Activity() {
         handler.post(move)
         handler.postDelayed(timeout, 12_000L)
         dlg.setOnDismissListener { stop() }
-        dlg.show()
+        showDialog(dlg)
     }
 
     /** Игра 6 «В такт»: тапни, когда питомец самый большой. Нужно 4 раза. */
@@ -717,7 +735,7 @@ class TamagotchiActivity : Activity() {
         handler.post(pulse)
         handler.postDelayed(timeout, 15_000L)
         dlg.setOnDismissListener { stop() }
-        dlg.show()
+        showDialog(dlg)
     }
 
     /** Игра 7 «Момент»: жми «Хватай», когда ползунок в зелёной зоне. */
@@ -800,7 +818,7 @@ class TamagotchiActivity : Activity() {
         jobs.add(slide)
         handler.post(slide)
         dlg.setOnDismissListener { stop() }
-        dlg.show()
+        showDialog(dlg)
     }
 
     /** Полоска-подсказка зелёной зоны 70–90 для «Момента». */
@@ -918,7 +936,7 @@ class TamagotchiActivity : Activity() {
         jobs.add(start)
         handler.postDelayed(start, 700L)
         dlg.setOnDismissListener { stop() }
-        dlg.show()
+        showDialog(dlg)
     }
 
     private fun revive() {

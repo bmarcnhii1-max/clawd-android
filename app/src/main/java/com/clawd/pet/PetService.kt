@@ -36,6 +36,10 @@ class PetService : Service() {
         @Volatile
         var petHidden = false
             private set
+
+        /** Подписчик из Activity: обновляет экран после действий из шторки. */
+        @Volatile
+        var stateListener: (() -> Unit)? = null
     }
 
     private lateinit var prefs: Prefs
@@ -123,11 +127,10 @@ class PetService : Service() {
                 Intent.ACTION_SCREEN_OFF -> {
                     overlay?.screenActive = false
                     if (prefs.alwaysVisible) return
-                    if (isScreenInteractive()) {
-                        return
-                    }
+                    // При включённом alwaysVisible оверлей живёт и на выключенном
+                    // экране, поэтому здесь только гасим анимации.
+                    if (isScreenInteractive()) return
                     screenOn = false
-                    overlay?.screenActive = false
                     overlay?.hide()
                 }
                 Intent.ACTION_SCREEN_ON -> {
@@ -149,7 +152,7 @@ class PetService : Service() {
 
     private fun isScreenInteractive(): Boolean {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
-        return if (Build.VERSION.SDK_INT >= 20) pm.isInteractive else pm.isScreenOn
+        return pm.isInteractive
     }
 
     /** -1, если уровень недоступен: getIntProperty возвращает 0/минус при ошибке. */
@@ -228,6 +231,8 @@ class PetService : Service() {
             ACTION_APPLY -> {
                 overlay?.applyConfig()
                 startMusicCheck()
+                // Язык и тексты шторки могли измениться вместе с настройками.
+                refreshNotification()
             }
             ACTION_RESET_POS -> {
                 overlay?.resetPosition()
@@ -238,6 +243,7 @@ class PetService : Service() {
                 petHidden = true
                 overlay?.hide()
                 refreshNotification()
+                notifyState()
             }
             ACTION_SHOW -> {
                 userHidden = false
@@ -245,6 +251,7 @@ class PetService : Service() {
                 maybeShow()
                 startMusicCheck()
                 refreshNotification()
+                notifyState()
             }
         }
         return START_STICKY
@@ -268,7 +275,12 @@ class PetService : Service() {
         }
         running = false
         petHidden = false
+        notifyState()
         super.onDestroy()
+    }
+
+    private fun notifyState() {
+        stateListener?.invoke()
     }
 
     private fun buildNotification(): Notification {

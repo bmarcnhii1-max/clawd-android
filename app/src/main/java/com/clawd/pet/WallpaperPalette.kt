@@ -1,5 +1,6 @@
 package com.clawd.pet
 
+import android.annotation.SuppressLint
 import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
@@ -46,7 +47,13 @@ object WallpaperPalette {
         }
     }
 
-    /** Фолбэк: анализ битмапа обоев (API < 31 или цвета недоступны). */
+    /**
+     * Фолбэк: анализ битмапа обоев (API < 31 или цвета недоступны).
+     * getDrawable требует READ_EXTERNAL_STORAGE на старых API, но у нас
+     * minSdk 26 и разрешение не запрашивается — при отказе ловим SecurityException
+     * и возвращаем null, поэтому доступ объявлен безопасным.
+     */
+    @SuppressLint("MissingPermission")
     private fun bitmapDominantColor(wm: WallpaperManager): Int? {
         val bmp = try {
             (wm.drawable as? BitmapDrawable)?.bitmap
