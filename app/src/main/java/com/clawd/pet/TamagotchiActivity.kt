@@ -39,16 +39,20 @@ class TamagotchiActivity : Activity() {
     private lateinit var tvMood: TextView
     private lateinit var tvHunger: TextView
     private lateinit var tvEnergy: TextView
+    private lateinit var tvHealth: TextView
     private lateinit var pbMood: ProgressBar
     private lateinit var pbHunger: ProgressBar
     private lateinit var pbEnergy: ProgressBar
+    private lateinit var pbHealth: ProgressBar
     private lateinit var tvMoodVal: TextView
     private lateinit var tvHungerVal: TextView
     private lateinit var tvEnergyVal: TextView
+    private lateinit var tvHealthVal: TextView
     private lateinit var vdDot: View
     private lateinit var btnFeed: Button
     private lateinit var btnPlay: Button
     private lateinit var btnSleep: Button
+    private lateinit var btnTreat: Button
     private lateinit var btnGame1: Button
     private lateinit var btnGame2: Button
     private lateinit var btnGame3: Button
@@ -81,16 +85,20 @@ class TamagotchiActivity : Activity() {
         tvMood = findViewById(R.id.tvTgMood)
         tvHunger = findViewById(R.id.tvTgHunger)
         tvEnergy = findViewById(R.id.tvTgEnergy)
+        tvHealth = findViewById(R.id.tvTgHealth)
         pbMood = findViewById(R.id.pbTgMood)
         pbHunger = findViewById(R.id.pbTgHunger)
         pbEnergy = findViewById(R.id.pbTgEnergy)
+        pbHealth = findViewById(R.id.pbTgHealth)
         tvMoodVal = findViewById(R.id.tvTgMoodVal)
         tvHungerVal = findViewById(R.id.tvTgHungerVal)
         tvEnergyVal = findViewById(R.id.tvTgEnergyVal)
+        tvHealthVal = findViewById(R.id.tvTgHealthVal)
         vdDot = findViewById(R.id.vdTgDot)
         btnFeed = findViewById(R.id.btnTgFeed)
         btnPlay = findViewById(R.id.btnTgPlay)
         btnSleep = findViewById(R.id.btnTgSleep)
+        btnTreat = findViewById(R.id.btnTgTreat)
         btnGame1 = findViewById(R.id.btnTgGame1)
         btnGame2 = findViewById(R.id.btnTgGame2)
         btnGame3 = findViewById(R.id.btnTgGame3)
@@ -108,6 +116,7 @@ class TamagotchiActivity : Activity() {
         btnFeed.setOnClickListener { act("feed") }
         btnPlay.setOnClickListener { act("play") }
         btnSleep.setOnClickListener { act("sleep") }
+        btnTreat.setOnClickListener { act("treat") }
         btnGame1.setOnClickListener { openGame(1) }
         btnGame2.setOnClickListener { openGame(2) }
         btnGame3.setOnClickListener { openGame(3) }
@@ -153,12 +162,21 @@ class TamagotchiActivity : Activity() {
             prefs.tgHunger = (prefs.tgHunger + 3).coerceAtMost(Tg.MAX)
             prefs.tgEnergy = (prefs.tgEnergy - 1).coerceAtLeast(0)
             petView.burst(PetPreviewView.BURST_FEED)
+            PetSounds.munch(this)
         } else if (kind == "play") {
             prefs.tgSleeping = false
             prefs.tgMood = (prefs.tgMood + 3).coerceAtMost(Tg.MAX)
             prefs.tgEnergy = (prefs.tgEnergy - 1).coerceAtLeast(0)
             prefs.tgHunger = (prefs.tgHunger - 1).coerceAtLeast(0)
             petView.burst(PetPreviewView.BURST_PLAY)
+        } else if (kind == "treat") {
+            // Горькое лекарство: здоровье +4, сытость −2.
+            prefs.tgSleeping = false
+            prefs.tgHealth = (prefs.tgHealth + 4).coerceAtMost(Tg.MAX)
+            prefs.tgHunger = (prefs.tgHunger - 2).coerceAtLeast(0)
+            petView.burst(PetPreviewView.BURST_PLAY)
+            PetSounds.chirp(this)
+            Toast.makeText(this, (I18n.t(lang)["tg_treat_win"] as String), Toast.LENGTH_SHORT).show()
         } else {
             prefs.tgSleeping = !prefs.tgSleeping
         }
@@ -282,6 +300,7 @@ class TamagotchiActivity : Activity() {
                 if (win) ti["tg_catch_win"] as String else ti["tg_catch_lose"] as String,
                 Toast.LENGTH_SHORT,
             ).show()
+            if (win) PetSounds.chirp(this)
             dlg.dismiss()
             draw()
         }
@@ -365,6 +384,7 @@ class TamagotchiActivity : Activity() {
                 if (i == hide) {
                     prefs.tgHunger = (prefs.tgHunger + 3).coerceAtMost(Tg.MAX)
                     result.text = ti["tg_cups_win"] as String
+                    PetSounds.chirp(this)
                 } else {
                     prefs.tgMood = (prefs.tgMood - 1).coerceAtLeast(0)
                     result.text = "${ti["tg_cups_lose"]} (${hide + 1})"
@@ -430,6 +450,7 @@ class TamagotchiActivity : Activity() {
             prefs.tgEnergy = (prefs.tgEnergy + 1).coerceAtMost(Tg.MAX)
             prefs.tgUpdatedAt = System.currentTimeMillis()
             Toast.makeText(this, ti["tg_simon_win"] as String, Toast.LENGTH_SHORT).show()
+            PetSounds.chirp(this)
             dlg.dismiss()
             draw()
         }
@@ -544,6 +565,7 @@ class TamagotchiActivity : Activity() {
             prefs.tgEnergy = (prefs.tgEnergy + 3).coerceAtMost(Tg.MAX)
             prefs.tgUpdatedAt = System.currentTimeMillis()
             Toast.makeText(this, ti["tg_hold_win"] as String, Toast.LENGTH_SHORT).show()
+            PetSounds.chirp(this)
             dlg.dismiss()
             draw()
         }
@@ -629,6 +651,7 @@ class TamagotchiActivity : Activity() {
             prefs.tgMood = (prefs.tgMood + 2).coerceAtMost(Tg.MAX)
             prefs.tgUpdatedAt = System.currentTimeMillis()
             Toast.makeText(this, ti["tg_aim_win"] as String, Toast.LENGTH_SHORT).show()
+            PetSounds.chirp(this)
             dlg.dismiss()
             draw()
         }
@@ -696,6 +719,7 @@ class TamagotchiActivity : Activity() {
             prefs.tgEnergy = (prefs.tgEnergy + 1).coerceAtMost(Tg.MAX)
             prefs.tgUpdatedAt = System.currentTimeMillis()
             Toast.makeText(this, ti["tg_beat_win"] as String, Toast.LENGTH_SHORT).show()
+            PetSounds.chirp(this)
             dlg.dismiss()
             draw()
         }
@@ -780,6 +804,7 @@ class TamagotchiActivity : Activity() {
             prefs.tgHunger = (prefs.tgHunger + 3).coerceAtMost(Tg.MAX)
             prefs.tgUpdatedAt = System.currentTimeMillis()
             Toast.makeText(this, ti["tg_moment_win"] as String, Toast.LENGTH_SHORT).show()
+            PetSounds.chirp(this)
             dlg.dismiss()
             draw()
         }
@@ -896,6 +921,7 @@ class TamagotchiActivity : Activity() {
             prefs.tgMood = (prefs.tgMood + 2).coerceAtMost(Tg.MAX)
             prefs.tgUpdatedAt = System.currentTimeMillis()
             Toast.makeText(this, ti["tg_mirror_win"] as String, Toast.LENGTH_SHORT).show()
+            PetSounds.chirp(this)
             dlg.dismiss()
             draw()
         }
@@ -958,6 +984,7 @@ class TamagotchiActivity : Activity() {
         prefs.tgHunger = 9
         prefs.tgMood = 9
         prefs.tgEnergy = 9
+        prefs.tgHealth = 10
         prefs.tgSleeping = false
         prefs.tgUpdatedAt = System.currentTimeMillis()
         etCode.setText("")
@@ -974,30 +1001,34 @@ class TamagotchiActivity : Activity() {
         val ti = I18n.t(lang)
         val alive = prefs.tgAlive
         val sleeping = prefs.tgSleeping
+        val sick = alive && !sleeping && prefs.tgHealth <= 3
         petView.setPet(prefs.color, prefs.size)
         petView.setRunning(alive)
         petView.setMode(
             when {
                 !alive -> PetPreviewView.MODE_DEAD
                 sleeping -> PetPreviewView.MODE_SLEEP
-                minOf(prefs.tgMood, prefs.tgHunger, prefs.tgEnergy) <= 2 && alive -> PetPreviewView.MODE_SAD
+                minOf(prefs.tgMood, prefs.tgHunger, prefs.tgEnergy, prefs.tgHealth) <= 2 && alive -> PetPreviewView.MODE_SAD
                 else -> PetPreviewView.MODE_ALIVE
             },
         )
-        petView.setVigor(minOf(prefs.tgMood, prefs.tgHunger, prefs.tgEnergy) / 10f)
+        petView.setVigor(minOf(prefs.tgMood, prefs.tgHunger, prefs.tgEnergy, prefs.tgHealth) / 10f)
         stat(pbMood, tvMoodVal, prefs.tgMood)
         stat(pbHunger, tvHungerVal, prefs.tgHunger)
         stat(pbEnergy, tvEnergyVal, prefs.tgEnergy)
+        stat(pbHealth, tvHealthVal, prefs.tgHealth)
         tvTitle.text = "${ti["tamagotchi"]}  ·  ${ti["tg_life"]} ${prefs.tgLives}"
         var dotColor = resources.getColor(R.color.stat_bad, theme)
         tvStatus.text = when {
             !alive -> ti["tg_dead"] as String
             sleeping -> ti["tg_sleep_note"] as String
+            sick -> ti["tg_sick"] as String
             else -> {
                 val candidates = listOf(
                     prefs.tgMood to "tg_sad",
                     prefs.tgHunger to "tg_hungry",
                     prefs.tgEnergy to "tg_tired",
+                    prefs.tgHealth to "tg_sick",
                 )
                 val lowest = candidates.minByOrNull { it.first } ?: (0 to "tg_sad")
                 val word = when {
@@ -1024,6 +1055,8 @@ class TamagotchiActivity : Activity() {
         btnSleep.text = if (sleeping) ti["tg_wake"] as String else ti["tg_sleep"] as String
         btnFeed.text = ti["tg_feed"] as String
         btnPlay.text = ti["tg_play"] as String
+        btnTreat.text = ti["tg_treat"] as String
+        btnTreat.visibility = if (sick) View.VISIBLE else View.GONE
         btnGame1.text = ti["tg_game_catch"] as String
         btnGame2.text = ti["tg_game_cups"] as String
         btnGame3.text = ti["tg_game_simon"] as String
@@ -1035,6 +1068,7 @@ class TamagotchiActivity : Activity() {
         btnFeed.isEnabled = alive
         btnPlay.isEnabled = alive
         btnSleep.isEnabled = alive
+        btnTreat.isEnabled = alive
         btnGame1.isEnabled = alive
         btnGame2.isEnabled = alive
         btnGame3.isEnabled = alive
@@ -1046,6 +1080,7 @@ class TamagotchiActivity : Activity() {
         btnFeed.alpha = if (alive) 1f else 0.35f
         btnPlay.alpha = if (alive) 1f else 0.35f
         btnSleep.alpha = if (alive) 1f else 0.35f
+        btnTreat.alpha = if (alive) 1f else 0.35f
         btnGame1.alpha = if (alive) 1f else 0.35f
         btnGame2.alpha = if (alive) 1f else 0.35f
         btnGame3.alpha = if (alive) 1f else 0.35f
@@ -1061,6 +1096,7 @@ class TamagotchiActivity : Activity() {
         tvMood.text = ti["tg_mood"] as String
         tvHunger.text = ti["tg_hunger"] as String
         tvEnergy.text = ti["tg_energy"] as String
+        tvHealth.text = ti["tg_health"] as String
     }
 
     private fun stat(bar: ProgressBar, valView: TextView, value: Int) {

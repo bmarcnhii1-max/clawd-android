@@ -29,6 +29,8 @@ object Tg {
             val regen = (elapsed / SLEEP_REGEN_MS).toInt()
             if (regen > 0) {
                 prefs.tgEnergy = prefs.tgEnergy + regen
+                // Сон лечит, но вдвое медленнее бодрости.
+                prefs.tgHealth = prefs.tgHealth + regen / 2
                 if (prefs.tgEnergy >= MAX) prefs.tgSleeping = false
                 // списываем только потраченное, остаток не сгорает
                 prefs.tgUpdatedAt = stored + regen * SLEEP_REGEN_MS
@@ -37,8 +39,12 @@ object Tg {
             val lost = (elapsed / DECAY_MS).toInt()
             if (lost > 0) {
                 prefs.tgHunger -= lost
-                prefs.tgMood -= lost
+                // Пока болеет — настроение тает вдвое быстрее.
+                prefs.tgMood -= if (prefs.tgHealth <= 3) lost * 2 else lost
                 prefs.tgEnergy -= lost
+                // Голод бьёт по здоровью, сытая жизнь лечит.
+                if (prefs.tgHunger <= 0) prefs.tgHealth -= lost
+                else if (prefs.tgHunger >= 7 && prefs.tgEnergy >= 7) prefs.tgHealth += lost
                 prefs.tgUpdatedAt = stored + lost * DECAY_MS
             }
         }
@@ -50,5 +56,5 @@ object Tg {
     }
 
     /** Худший показатель — им определяется «настроение» питомца в оверлее. */
-    fun worst(prefs: Prefs): Int = minOf(prefs.tgHunger, prefs.tgMood, prefs.tgEnergy)
+    fun worst(prefs: Prefs): Int = minOf(prefs.tgHunger, prefs.tgMood, prefs.tgEnergy, prefs.tgHealth)
 }

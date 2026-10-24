@@ -26,6 +26,10 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("dance", true)
         set(value) = sp.edit().putBoolean("dance", value).apply()
 
+    var sounds: Boolean
+        get() = sp.getBoolean("sounds", true)
+        set(value) = sp.edit().putBoolean("sounds", value).apply()
+
     var tgAlive: Boolean
         get() = sp.getBoolean("tg_alive", true)
         set(value) = sp.edit().putBoolean("tg_alive", value).apply()
@@ -45,6 +49,10 @@ class Prefs(context: Context) {
     var tgEnergy: Int
         get() = sp.getInt("tg_energy", 10)
         set(value) = sp.edit().putInt("tg_energy", value.coerceIn(0, 10)).apply()
+
+    var tgHealth: Int
+        get() = sp.getInt("tg_health", 10)
+        set(value) = sp.edit().putInt("tg_health", value.coerceIn(0, 10)).apply()
 
     var tgSleeping: Boolean
         get() = sp.getBoolean("tg_sleeping", false)

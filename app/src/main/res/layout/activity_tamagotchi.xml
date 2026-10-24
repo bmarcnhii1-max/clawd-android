@@ -177,6 +177,40 @@
                     android:textColor="@color/muted"
                     android:textSize="11sp" />
             </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvTgHealth"
+                    android:layout_width="84dp"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/muted"
+                    android:textSize="11sp" />
+
+                <ProgressBar
+                    android:id="@+id/pbTgHealth"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_height="10dp"
+                    android:layout_weight="1"
+                    android:max="10"
+                    android:progress="10"
+                    android:progressDrawable="@drawable/bar_track" />
+
+                <TextView
+                    android:id="@+id/tvTgHealthVal"
+                    android:layout_width="36dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:gravity="end"
+                    android:textColor="@color/muted"
+                    android:textSize="11sp" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Действия -->
@@ -223,6 +257,20 @@
                 android:textAllCaps="false"
                 android:textColor="@color/text"
                 android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnTgTreat"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/ripple_soft"
+                android:elevation="0dp"
+                android:stateListAnimator="@null"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="12sp"
+                android:visibility="gone" />
         </LinearLayout>
 
         <!-- Мини-игры: ряд 1 -->

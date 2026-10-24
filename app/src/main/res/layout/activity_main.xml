@@ -356,6 +356,21 @@
                 android:textSize="12sp"
                 android:thumbTint="@color/accent"
                 android:trackTint="@color/track" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/line" />
+
+            <Switch
+                android:id="@+id/swSounds"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:textSize="12sp"
+                android:thumbTint="@color/accent"
+                android:trackTint="@color/track" />
         </LinearLayout>
 
         <!-- Разрешения: два компактных ряда -->

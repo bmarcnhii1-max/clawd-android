@@ -51,6 +51,7 @@ class MainActivity : Activity() {
     private lateinit var swPhrases: Switch
     private lateinit var swGravity: Switch
     private lateinit var swDance: Switch
+    private lateinit var swSounds: Switch
     private lateinit var btnOverlay: Button
     private lateinit var btnBattery: Button
     private lateinit var btnTamagotchi: Button
@@ -108,6 +109,7 @@ class MainActivity : Activity() {
         swPhrases = findViewById(R.id.swPhrases)
         swGravity = findViewById(R.id.swGravity)
         swDance = findViewById(R.id.swDance)
+        swSounds = findViewById(R.id.swSounds)
         btnOverlay = findViewById(R.id.btnOverlay)
         btnBattery = findViewById(R.id.btnBattery)
         btnTamagotchi = findViewById(R.id.btnTamagotchi)
@@ -138,6 +140,7 @@ class MainActivity : Activity() {
         swPhrases.isChecked = prefs.phrases
         swGravity.isChecked = prefs.gravity
         swDance.isChecked = prefs.dance
+        swSounds.isChecked = prefs.sounds
         suppressListeners = false
     }
 
@@ -166,6 +169,7 @@ class MainActivity : Activity() {
         swPhrases.text = ti["phrases"] as String
         swGravity.text = ti["gravity"] as String
         swDance.text = ti["dance"] as String
+        swSounds.text = ti["sounds"] as String
         btnStart.text = ti["start"] as String
         btnStop.text = ti["stop"] as String
         btnShare.text = ti["share"] as String
@@ -251,6 +255,7 @@ class MainActivity : Activity() {
         swPhrases.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.phrases = v; syncService() } }
         swGravity.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.gravity = v; syncService() } }
         swDance.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.dance = v; syncService() } }
+        swSounds.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.sounds = v; syncService() } }
 
         btnTamagotchi.setOnClickListener {
             startActivity(Intent(this, TamagotchiActivity::class.java))

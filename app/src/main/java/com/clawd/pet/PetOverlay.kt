@@ -240,6 +240,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         state = STATE_PET
         lastInteraction = uptime()
         petUntil = uptime() + 12000L
+        PetSounds.purr(context)
         say("pet")
     }
 

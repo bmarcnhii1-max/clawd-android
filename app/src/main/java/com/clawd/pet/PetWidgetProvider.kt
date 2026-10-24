@@ -38,6 +38,7 @@ class PetWidgetProvider : AppWidgetProvider() {
             val status = when {
                 !prefs.tgAlive -> t["tg_dead"] as String
                 prefs.tgSleeping -> t["tg_sleep_note"] as String
+                prefs.tgHealth <= 3 -> t["tg_sick"] as String
                 else -> {
                     val h = prefs.tgHunger
                     val m = prefs.tgMood
