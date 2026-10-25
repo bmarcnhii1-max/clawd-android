@@ -12,6 +12,9 @@ object Sprite {
         "Небесный" to intArrayOf(0xFF4FA8E8.toInt(), 0xFF0E1C29.toInt()),
         "Розовый" to intArrayOf(0xFFEE85AE.toInt(), 0xFF2A1220.toInt()),
         "Графит" to intArrayOf(0xFF5E6670.toInt(), 0xFFF2F2F2.toInt()),
+        "Терракот" to intArrayOf(0xFFC96F4A.toInt(), 0xFF2B160D.toInt()),
+        "Морская волна" to intArrayOf(0xFF26A69A.toInt(), 0xFF0A2422.toInt()),
+        "Магма" to intArrayOf(0xFFFF6D00.toInt(), 0xFF2B1200.toInt()),
     )
 
     const val HEART_COLOR = 0xFFFF5C7A.toInt()

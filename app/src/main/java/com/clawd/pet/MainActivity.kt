@@ -11,11 +11,13 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
-import android.widget.ArrayAdapter
+import android.view.Gravity
+import android.view.View
+import android.graphics.drawable.GradientDrawable
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -29,7 +31,6 @@ class MainActivity : Activity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvLanguage: TextView
     private lateinit var tvSize: TextView
-    private lateinit var tvColor: TextView
     private lateinit var tvSleep: TextView
     private lateinit var tvTips: TextView
     private lateinit var tvNoNet: TextView
@@ -46,7 +47,16 @@ class MainActivity : Activity() {
     private lateinit var rbSleep3: RadioButton
     private lateinit var rbSleep10: RadioButton
     private lateinit var rbSleepNever: RadioButton
-    private lateinit var spColor: Spinner
+    private lateinit var tvSecLook: TextView
+    private lateinit var tvSecBehavior: TextView
+    private lateinit var tvSecSystem: TextView
+    private lateinit var secLookBody: View
+    private lateinit var secBehaviorBody: View
+    private lateinit var secSystemBody: View
+    private lateinit var colorList: LinearLayout
+    private var lookOpen = true
+    private var behaviorOpen = false
+    private var systemOpen = false
     private lateinit var swWander: Switch
     private lateinit var swPhrases: Switch
     private lateinit var swGravity: Switch
@@ -64,7 +74,6 @@ class MainActivity : Activity() {
     private lateinit var tvHint: TextView
 
     private var suppressListeners = false
-    private var colorAdapterLang = ""
 
     private fun t() = I18n.t(lang)
 
@@ -87,7 +96,6 @@ class MainActivity : Activity() {
         tvStatus = findViewById(R.id.tvStatus)
         tvLanguage = findViewById(R.id.tvLanguage)
         tvSize = findViewById(R.id.tvSize)
-        tvColor = findViewById(R.id.tvColor)
         tvSleep = findViewById(R.id.tvSleep)
         tvTips = findViewById(R.id.tvTips)
         tvNoNet = findViewById(R.id.tvNoNet)
@@ -104,7 +112,13 @@ class MainActivity : Activity() {
         rbSleep3 = findViewById(R.id.rbSleep3)
         rbSleep10 = findViewById(R.id.rbSleep10)
         rbSleepNever = findViewById(R.id.rbSleepNever)
-        spColor = findViewById(R.id.spColor)
+        tvSecLook = findViewById(R.id.tvSecLook)
+        tvSecBehavior = findViewById(R.id.tvSecBehavior)
+        tvSecSystem = findViewById(R.id.tvSecSystem)
+        secLookBody = findViewById(R.id.secLookBody)
+        secBehaviorBody = findViewById(R.id.secBehaviorBody)
+        secSystemBody = findViewById(R.id.secSystemBody)
+        colorList = findViewById(R.id.colorList)
         swWander = findViewById(R.id.swWander)
         swPhrases = findViewById(R.id.swPhrases)
         swGravity = findViewById(R.id.swGravity)
@@ -151,7 +165,6 @@ class MainActivity : Activity() {
         tvSubtitle.text = ti["subtitle"] as String
         tvLanguage.text = ti["language"] as String
         tvSize.text = ti["size"] as String
-        tvColor.text = ti["color"] as String
         tvSleep.text = ti["sleep"] as String
         tvTips.text = ti["tips"] as String
         tvNoNet.text = ti["no_internet"] as String
@@ -185,18 +198,8 @@ class MainActivity : Activity() {
         )
         preview.setRunning(isRunning)
         preview.setPet(prefs.color, prefs.size)
-
-        @Suppress("UNCHECKED_CAST")
-        val colors = ti["colors"] as List<String>
-        if (spColor.adapter == null || colorAdapterLang != lang) {
-            colorAdapterLang = lang
-            suppressListeners = true
-            spColor.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, colors)
-        }
-        if (spColor.selectedItemPosition != Math.floorMod(prefs.color, Sprite.count())) {
-            suppressListeners = true
-            spColor.setSelection(Math.floorMod(prefs.color, Sprite.count()))
-        }
+        drawSections()
+        renderColorList()
         suppressListeners = prev
 
         val pm = getSystemService(POWER_SERVICE) as PowerManager
@@ -212,7 +215,71 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Заголовки секций со стрелками + видимость тел. */
+    private fun drawSections() {
+        val ti = t()
+        tvSecLook.text = "${ti["sec_look"]}  ${if (lookOpen) "▾" else "▸"}"
+        tvSecBehavior.text = "${ti["sec_behavior"]}  ${if (behaviorOpen) "▾" else "▸"}"
+        tvSecSystem.text = "${ti["sec_system"]}  ${if (systemOpen) "▾" else "▸"}"
+        secLookBody.visibility = if (lookOpen) View.VISIBLE else View.GONE
+        secBehaviorBody.visibility = if (behaviorOpen) View.VISIBLE else View.GONE
+        secSystemBody.visibility = if (systemOpen) View.VISIBLE else View.GONE
+    }
+
+    /** Инлайн-список окрасов вместо спиннера: точка + название + выбор. */
+    private fun renderColorList() {
+        val ti = t()
+        @Suppress("UNCHECKED_CAST")
+        val names = ti["colors"] as List<String>
+        val selected = Math.floorMod(prefs.color, Sprite.count())
+        colorList.removeAllViews()
+        val d = resources.displayMetrics.density
+        for (i in 0 until Sprite.count()) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding((8 * d).toInt(), (10 * d).toInt(), (8 * d).toInt(), (10 * d).toInt())
+                isClickable = true
+                isFocusable = true
+                setBackgroundResource(android.R.drawable.list_selector_background)
+            }
+            val dot = View(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Sprite.bodyColor(i))
+                }
+                layoutParams = LinearLayout.LayoutParams((18 * d).toInt(), (18 * d).toInt())
+            }
+            val label = TextView(this).apply {
+                text = names.getOrElse(i) { Sprite.name(i) }
+                textSize = 13f
+                setTextColor(resources.getColor(R.color.text, theme))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = (10 * d).toInt()
+                }
+            }
+            val mark = TextView(this).apply {
+                text = if (i == selected) "●" else ""
+                textSize = 14f
+                setTextColor(resources.getColor(R.color.accent, theme))
+            }
+            row.addView(dot)
+            row.addView(label)
+            row.addView(mark)
+            row.setOnClickListener {
+                prefs.color = i
+                applyPetIcon(i)
+                applyTexts()
+                syncService()
+            }
+            colorList.addView(row)
+        }
+    }
+
     private fun listeners() {
+        tvSecLook.setOnClickListener { lookOpen = !lookOpen; drawSections() }
+        tvSecBehavior.setOnClickListener { behaviorOpen = !behaviorOpen; drawSections() }
+        tvSecSystem.setOnClickListener { systemOpen = !systemOpen; drawSections() }
         rgLang.setOnCheckedChangeListener { _, checkedId ->
             if (suppressListeners) return@setOnCheckedChangeListener
             lang = if (checkedId == R.id.rbEn) "en" else "ru"
@@ -239,17 +306,6 @@ class MainActivity : Activity() {
                 else -> 180
             }
             syncService()
-        }
-        spColor.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                if (suppressListeners) return
-                prefs.color = position
-                applyPetIcon(position)
-                applyTexts()
-                syncService()
-            }
-
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }
         swWander.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.wander = v; syncService() } }
         swPhrases.setOnCheckedChangeListener { _, v -> if (!suppressListeners) { prefs.phrases = v; syncService() } }
@@ -365,7 +421,7 @@ class MainActivity : Activity() {
     private fun shareSettings() {        val pos = if (prefs.positionSaved()) ",\"posX\":${prefs.posX},\"posY\":${prefs.posY}" else ""
         val json = "{\"lang\":\"${prefs.lang}\",\"size\":${prefs.size},\"color\":${prefs.color}" +
             ",\"wander\":${prefs.wander},\"phrases\":${prefs.phrases},\"gravity\":${prefs.gravity}" +
-            ",\"dance\":${prefs.dance},\"sleepSeconds\":${prefs.sleepSeconds}$pos}"
+            ",\"dance\":${prefs.dance},\"sounds\":${prefs.sounds},\"sleepSeconds\":${prefs.sleepSeconds}$pos}"
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, "Clawd settings: $json")
