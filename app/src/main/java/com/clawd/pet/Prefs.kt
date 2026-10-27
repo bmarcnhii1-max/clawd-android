@@ -62,6 +62,11 @@ class Prefs(context: Context) {
         get() = sp.getLong("tg_updated_at", 0L)
         set(value) = sp.edit().putLong("tg_updated_at", value).apply()
 
+    /** Последний ручной уход: кормление, игра, сон, лечение, мини-игра, revive. */
+    var tgLastCare: Long
+        get() = sp.getLong("tg_last_care", 0L)
+        set(value) = sp.edit().putLong("tg_last_care", value).apply()
+
     var size: Int
         get() = sp.getInt("size", 1)
         set(value) = sp.edit().putInt("size", Math.floorMod(value, Sprite.sizes())).apply()

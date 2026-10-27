@@ -108,6 +108,8 @@ class PetWidgetProvider : AppWidgetProvider() {
                 prefs.tgSleeping = false
                 prefs.tgHunger = (prefs.tgHunger + 3).coerceAtMost(Tg.MAX)
                 prefs.tgEnergy = (prefs.tgEnergy - 1).coerceAtLeast(0)
+                prefs.tgUpdatedAt = System.currentTimeMillis()
+                prefs.tgLastCare = prefs.tgUpdatedAt
             }
             refresh(context)
         }

@@ -9,6 +9,8 @@ object Tg {
     const val MAX = 10
     const val DECAY_MS = 20L * 60_000L
     const val SLEEP_REGEN_MS = 12L * 60_000L
+    /** Сутки без ухода — всё в ноль, даже во сне. Спать вечно больше нельзя. */
+    const val NEGLECT_MS = 24L * 60_000L * 60L
 
     fun applyDecay(prefs: Prefs) {
         val now = System.currentTimeMillis()
@@ -18,6 +20,17 @@ object Tg {
             return
         }
         if (!prefs.tgAlive) return
+        if (prefs.tgLastCare == 0L) {
+            // Миграция старых сохранений: отсчёт с этого момента, без казни.
+            prefs.tgLastCare = now
+        }
+        if (now - prefs.tgLastCare > NEGLECT_MS) {
+            prefs.tgHunger = 0
+            prefs.tgMood = 0
+            prefs.tgEnergy = 0
+            prefs.tgSleeping = false
+            prefs.tgUpdatedAt = now
+        }
         val elapsed = now - stored
         if (prefs.tgSleeping) {
             if (prefs.tgEnergy >= MAX) {

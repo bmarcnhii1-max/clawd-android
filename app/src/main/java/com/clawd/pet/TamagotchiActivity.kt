@@ -157,6 +157,7 @@ class TamagotchiActivity : Activity() {
         applyDecay()
         if (!prefs.tgAlive) return
         prefs.tgUpdatedAt = System.currentTimeMillis()
+        prefs.tgLastCare = prefs.tgUpdatedAt
         if (kind == "feed") {
             prefs.tgSleeping = false
             prefs.tgHunger = (prefs.tgHunger + 3).coerceAtMost(Tg.MAX)
@@ -192,6 +193,7 @@ class TamagotchiActivity : Activity() {
         }
         prefs.tgSleeping = false
         prefs.tgUpdatedAt = System.currentTimeMillis()
+        prefs.tgLastCare = prefs.tgUpdatedAt
         when (kind) {
             1 -> gameCatch()
             2 -> gameCups()
@@ -987,6 +989,7 @@ class TamagotchiActivity : Activity() {
         prefs.tgHealth = 10
         prefs.tgSleeping = false
         prefs.tgUpdatedAt = System.currentTimeMillis()
+        prefs.tgLastCare = prefs.tgUpdatedAt
         etCode.setText("")
         val ti = I18n.t(lang)
         Toast.makeText(
