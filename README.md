@@ -139,6 +139,7 @@ Prebuilt APKs live in [Releases](https://github.com/bmarcnhii1-max/clawd-android
 
 | Version | Contents |
 | --- | --- |
+| [v1.4.1](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.4.1) | `clawd-1.4.1-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.4.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.4.0) | `clawd-1.4.0-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.3.7](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.7) | `clawd-1.3.7-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.3.6](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.3.6) | `clawd-1.3.6-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
