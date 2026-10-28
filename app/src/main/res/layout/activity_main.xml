@@ -242,6 +242,16 @@
                         android:paddingTop="4dp"
                         android:paddingBottom="4dp"
                         android:textSize="11sp" />
+
+                    <RadioButton
+                        android:id="@+id/rbSize3"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:buttonTint="@color/accent"
+                        android:minWidth="0dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:textSize="11sp" />
                 </RadioGroup>
             </LinearLayout>
 

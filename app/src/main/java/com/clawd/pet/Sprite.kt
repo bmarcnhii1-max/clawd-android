@@ -3,7 +3,7 @@ package com.clawd.pet
 object Sprite {
     const val GRID_W = 18
     const val GRID_H = 13
-    val SIZE_UNITS = intArrayOf(5, 7, 9)
+    val SIZE_UNITS = intArrayOf(5, 7, 9, 3)
 
     val PALETTES = listOf(
         "Claude" to intArrayOf(0xFFD97757.toInt(), 0xFF1A1A1A.toInt()),

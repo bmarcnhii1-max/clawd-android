@@ -42,6 +42,7 @@ class MainActivity : Activity() {
     private lateinit var rbSize0: RadioButton
     private lateinit var rbSize1: RadioButton
     private lateinit var rbSize2: RadioButton
+    private lateinit var rbSize3: RadioButton
     private lateinit var rgSleep: RadioGroup
     private lateinit var rbSleep1: RadioButton
     private lateinit var rbSleep3: RadioButton
@@ -107,6 +108,7 @@ class MainActivity : Activity() {
         rbSize0 = findViewById(R.id.rbSize0)
         rbSize1 = findViewById(R.id.rbSize1)
         rbSize2 = findViewById(R.id.rbSize2)
+        rbSize3 = findViewById(R.id.rbSize3)
         rgSleep = findViewById(R.id.rgSleep)
         rbSleep1 = findViewById(R.id.rbSleep1)
         rbSleep3 = findViewById(R.id.rbSleep3)
@@ -142,6 +144,7 @@ class MainActivity : Activity() {
         when (prefs.size) {
             0 -> rbSize0.isChecked = true
             2 -> rbSize2.isChecked = true
+            3 -> rbSize3.isChecked = true
             else -> rbSize1.isChecked = true
         }
         when (prefs.sleepSeconds) {
@@ -178,6 +181,7 @@ class MainActivity : Activity() {
         rbSize0.text = sizes[0]
         rbSize1.text = sizes[1]
         rbSize2.text = sizes[2]
+        rbSize3.text = sizes[3]
         swWander.text = ti["wander"] as String
         swPhrases.text = ti["phrases"] as String
         swGravity.text = ti["gravity"] as String
@@ -292,6 +296,7 @@ class MainActivity : Activity() {
             prefs.size = when (checkedId) {
                 R.id.rbSize0 -> 0
                 R.id.rbSize2 -> 2
+                R.id.rbSize3 -> 3
                 else -> 1
             }
             applyTexts()
