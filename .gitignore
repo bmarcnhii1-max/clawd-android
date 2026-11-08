@@ -9,6 +9,7 @@ captures/
 .cxx/
 
 # Real secrets live here — never commit
+.env
 .env.local
 .gitmessage
 clawd-release.keystore

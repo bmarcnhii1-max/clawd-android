@@ -55,7 +55,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     private val random = kotlin.random.Random.Default
-    private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+        ?: throw IllegalStateException("WindowManager unavailable")
     private val dm = context.resources.displayMetrics
     private var density = dm.density
     private val handler = Handler(Looper.getMainLooper())
@@ -187,10 +188,15 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
     // Цикл на Choreographer: кадры ровно по vsync, без дёрганья Handler.postDelayed.
     // Движение — каждый кадр, покой — не чаще 20 fps, сон — раз в секунду.
-    private val choreographer = Choreographer.getInstance()
+    // Choreographer создаём лениво и только на main-потоке: объект может быть
+    // создан до Choreographer, а вызовы из фонового потока — RuntimeException.
+    private val choreographer: Choreographer? by lazy {
+        runCatching { Choreographer.getInstance() }.getOrNull()
+    }
     private var framePending = false
     private var lastFrameStepMs = 0L
     private var positionDirty = false
+    private var frameErrors = 0
     private val idleKick = Runnable { armFrame() }
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -212,8 +218,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                     handler.removeCallbacks(idleKick)
                     handler.postDelayed(idleKick, gap)
                 }
+                frameErrors = 0
             } catch (_: Exception) {
-                handler.postDelayed(idleKick, 2000L)
+                frameErrors++
+                if (frameErrors <= 10) handler.postDelayed(idleKick, 2000L)
             }
         }
     }
@@ -223,19 +231,31 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             state == STATE_DRAG || state == STATE_PET || hopActive || dancing ||
             positionDirty || dissolve != dissolveTarget
 
+    private fun onMainThread(): Boolean = Looper.myLooper() == handler.looper
+
     private fun armFrame() {
         if (!added || framePending) return
+        if (!onMainThread()) return
+        val cr = choreographer ?: return
         framePending = true
-        choreographer.postFrameCallback(frameCallback)
+        runCatching { cr.postFrameCallback(frameCallback) }
+            .onFailure { framePending = false }
     }
 
     private fun unarmFrame() {
         framePending = false
-        choreographer.removeFrameCallback(frameCallback)
         handler.removeCallbacks(idleKick)
+        runCatching { choreographer?.removeFrameCallback(frameCallback) }
     }
 
+    private var preDownState = STATE_IDLE
+    private var preDownVx = 0f
+    private var preDownVy = 0f
+
     private val petRunnable = Runnable {
+        // Не поглаживать скрытого/улетевшего питомца: hideForFlee/stealth
+        // может сработать, пока палец ещё на экране.
+        if (!added || state == STATE_FLEE) return@Runnable
         petted = true
         state = STATE_PET
         lastInteraction = uptime()
@@ -261,10 +281,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     private fun uptime(): Long = SystemClock.elapsedRealtime()
 
     private fun initMetrics() {
-        density = context.resources.displayMetrics.density
+        density = context.resources.displayMetrics.density.coerceAtLeast(0.1f)
         paintBubbleStroke.strokeWidth = density
         refreshDisplaySize()
-        unit = Sprite.unitDp(prefs.size) * density
+        unit = (Sprite.unitDp(prefs.size) * density).coerceAtLeast(1f)
         bodyW = unit * Sprite.GRID_W
         bodyH = unit * Sprite.GRID_H
         margin = max(bodyW, bodyH) * 0.25f + 10f * density
@@ -354,6 +374,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     fun show(condense: Boolean = false) {
+        if (!onMainThread()) {
+            handler.post { show(condense) }
+            return
+        }
         if (added) return
         refreshDisplaySize()
         state = STATE_IDLE
@@ -369,19 +393,22 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         tapTimes.clear()
         lastTap = 0L
         restorePos()
+        // Оба окна добавляются «всё или ничего»: если второе упадёт,
+        // первое удаляем и не выставляем added — иначе остаётся ghost-окно.
+        var firstOk = false
+        var secondOk = false
         try {
             wm.addView(view, lp)
+            firstOk = true
             wm.addView(hitView, hitLp)
+            secondOk = true
             added = true
-        } catch (e: Exception) {
-            try {
-                wm.removeView(view)
-            } catch (_: Exception) {
-            }
-            try {
-                wm.removeView(hitView)
-            } catch (_: Exception) {
-            }
+        } catch (_: Exception) {
+            added = false
+        }
+        if (!added) {
+            if (firstOk) runCatching { wm.removeView(view) }
+            if (secondOk) runCatching { wm.removeView(hitView) }
             return
         }
         pushWindow()
@@ -396,6 +423,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     fun hide() {
+        if (!onMainThread()) {
+            handler.post { hide() }
+            return
+        }
         unarmFrame()
         handler.removeCallbacks(returnRunnable)
         handler.removeCallbacks(greetingRunnable)
@@ -435,6 +466,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     fun resetPosition() {
+        if (!onMainThread()) {
+            handler.post { resetPosition() }
+            return
+        }
         prefs.posX = Int.MIN_VALUE
         prefs.posY = Int.MIN_VALUE
         cancelFlee()
@@ -475,6 +510,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     fun applyConfig() {
+        if (!onMainThread()) {
+            handler.post { applyConfig() }
+            return
+        }
         cancelFlee()
         val cx = x + viewW / 2f
         val cy = y + viewH / 2f
@@ -674,6 +713,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         state = STATE_IDLE
         vx = 0f
         vy = 0f
+        tilt = 0f
         squashUntil = uptime() + 140L
         nextAction = uptime() + 2000L + random.nextLong(3000)
         lastInteraction = uptime()
@@ -696,6 +736,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
     private fun hideForFlee() {
         if (!added) return
+        handler.removeCallbacks(petRunnable)
+        handler.removeCallbacks(greetingRunnable)
         savePos()
         unarmFrame()
         try {
@@ -767,7 +809,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             }
         }
         if (particles.size > 90) {
-            while (particles.size > 90) particles.removeAt(0)
+            // O(1) вместо серии O(N) removeAt(0).
+            particles.subList(0, particles.size - 90).clear()
         }
         paintBody.color = bodyColor
     }
@@ -809,7 +852,9 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                 ),
             )
             paintBody.color = bodyColor
-            if (particles.size > 90) particles.removeAt(0)
+            if (particles.size > 90) {
+                particles.subList(0, particles.size - 90).clear()
+            }
             return
         }
         val rows = Sprite.particleRows(type) ?: return
@@ -992,6 +1037,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
     /** Поворот / смена конфигурации: пересчитать метрики и переприжать окно. */
     fun onDisplayChanged() {
+        if (!onMainThread()) {
+            handler.post { onDisplayChanged() }
+            return
+        }
         initMetrics()
         clampXY()
         pushWindow()
@@ -1126,6 +1175,9 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                 touchHist.clear()
                 touchHist.add(Sample(now, rawX, rawY))
                 lastInteraction = now
+                preDownState = state
+                preDownVx = vx
+                preDownVy = vy
                 if (state == STATE_SLEEP) wake()
                 handler.postDelayed(petRunnable, PET_HOLD_MS)
             }
@@ -1178,7 +1230,19 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
                 val cancelled = event.actionMasked == MotionEvent.ACTION_CANCEL
                 val dtSec = (now - downT) / 1000f
                 if (cancelled) {
-                    state = STATE_IDLE
+                    // Не «телепортировать» питомца в idle из полёта/хода:
+                    // восстанавливаем состояние перед ACTION_DOWN.
+                    if (preDownState == STATE_FLY || preDownState == STATE_WALK ||
+                        preDownState == STATE_PET || preDownState == STATE_SLEEP
+                    ) {
+                        state = preDownState
+                        vx = preDownVx
+                        vy = preDownVy
+                    } else {
+                        state = STATE_IDLE
+                        vx = 0f
+                        vy = 0f
+                    }
                     lastInteraction = now
                     savePos()
                 } else if (petted) {
@@ -1230,6 +1294,10 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
 
     /** Плавный наклон: цель зависит от скорости, само значение догоняет её пружиной. */
     private fun stepTilt(dt: Float) {
+        if (unit < 0.01f || !unit.isFinite()) {
+            tilt = 0f
+            return
+        }
         val now = uptime()
         val target = when {
             state == STATE_FLEE -> 0f
@@ -1240,6 +1308,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
             else -> 0f
         }
         tilt += (target - tilt) * (1f - exp(-14f * dt))
+        if (!tilt.isFinite()) tilt = 0f
         if (abs(tilt) < 0.05f && target == 0f) tilt = 0f
     }
 
@@ -1556,7 +1625,9 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         val text = bubbleText ?: return
         if (bubbleUntil <= now) return
         val pad = 8f * density
-        val maxW = viewW - pad * 2f - 8f * density
+        val lineH0 = paintText.textSize * 1.25f
+        val maxW = (viewW - pad * 2f - 8f * density)
+            .coerceAtLeast(lineH0 * 2f)
         val lineH = paintText.textSize * 1.25f
         val lines = wrapText(text, maxW, 3)
         val widths = lines.map { measureWithHearts(it) }
@@ -1568,7 +1639,8 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         if (bottomEdge - h < 0f) bottomEdge = h
         val top = bottomEdge - h
         val rect = RectF(left, top, left + w, bottomEdge)
-        canvas.drawRoundRect(rect, unit * 2.2f, unit * 2.2f, paintBubble)
+        val corner = (unit * 2.2f).coerceAtMost(w / 2f).coerceAtMost((bottomEdge - top) / 2f)
+        canvas.drawRoundRect(rect, corner, corner, paintBubble)
         canvas.drawRoundRect(rect, unit * 2.2f, unit * 2.2f, paintBubbleStroke)
 
         val tail = android.graphics.Path()
@@ -1650,6 +1722,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
     }
 
     private fun wrapText(text: String, maxW: Float, maxLines: Int): List<String> {
+        val safeMaxW = maxW.coerceAtLeast(paintText.textSize)
         val words = text.split(" ")
         val lines = ArrayList<String>()
         var current = StringBuilder()
@@ -1668,7 +1741,7 @@ class PetOverlay(private val context: Context, private val prefs: Prefs) {
         if (lines.size > maxLines) lines.subList(maxLines, lines.size).clear()
         if (lines.isNotEmpty()) {
             val lastIdx = lines.size - 1
-            lines[lastIdx] = TextUtils.ellipsize(lines[lastIdx], paintText, maxW, TextUtils.TruncateAt.END).toString()
+            lines[lastIdx] = TextUtils.ellipsize(lines[lastIdx], paintText, safeMaxW, TextUtils.TruncateAt.END).toString()
         }
         return lines
     }

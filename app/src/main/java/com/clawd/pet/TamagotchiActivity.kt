@@ -127,7 +127,17 @@ class TamagotchiActivity : Activity() {
         btnGame8.setOnClickListener { openGame(8) }
         btnRevive.setOnClickListener { revive() }
         draw()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        handler.removeCallbacks(tick)
         handler.postDelayed(tick, TICK_MS)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(tick)
     }
 
     override fun onDestroy() {
@@ -139,10 +149,11 @@ class TamagotchiActivity : Activity() {
         super.onDestroy()
     }
 
-    override fun onPause() {
-        super.onPause()
+    override fun onStop() {
+        super.onStop()
         // Виджет живёт своей жизнью и обновляется раз в 30 минут,
         // поэтому сообщаем ему актуальные статы при уходе с экрана.
+        // (было в onPause, теперь tik остановлен там же — refresh в onStop.)
         PetWidgetProvider.refresh(this)
     }
 
@@ -156,8 +167,15 @@ class TamagotchiActivity : Activity() {
         if (!prefs.tgAlive) return
         applyDecay()
         if (!prefs.tgAlive) return
-        prefs.tgUpdatedAt = System.currentTimeMillis()
-        prefs.tgLastCare = prefs.tgUpdatedAt
+        // tgLastCare (защита от 24ч neglect) обновляем только за «ручной»
+        // уход: кормление/игра/лечение. Простое переключение сна не должно
+        // каждый день бесплатно откладывать смерть.
+        if (kind != "sleep") {
+            prefs.tgUpdatedAt = System.currentTimeMillis()
+            prefs.tgLastCare = prefs.tgUpdatedAt
+        } else {
+            prefs.tgUpdatedAt = System.currentTimeMillis()
+        }
         if (kind == "feed") {
             prefs.tgSleeping = false
             prefs.tgHunger = (prefs.tgHunger + 3).coerceAtMost(Tg.MAX)
@@ -192,8 +210,10 @@ class TamagotchiActivity : Activity() {
             return
         }
         prefs.tgSleeping = false
+        // Открытие игры и закрытие без результата — не уход:
+        // neglect-таймер здесь не трогаем (раньше это давало бесплатный
+        // бессмертный питомец при раз в сутки «открыть-закрыть»).
         prefs.tgUpdatedAt = System.currentTimeMillis()
-        prefs.tgLastCare = prefs.tgUpdatedAt
         when (kind) {
             1 -> gameCatch()
             2 -> gameCups()
@@ -320,7 +340,10 @@ class TamagotchiActivity : Activity() {
         pet.setOnTouchListener { _, e ->
             if (e.action != MotionEvent.ACTION_DOWN) return@setOnTouchListener false
             if (over) return@setOnTouchListener true
-            if (abs(e.x - pet.width / 2f) <= hitHw &&
+            // Спрайт рисуется с translationX = side*90dp внутри самой вьюхи,
+            // поэтому центр попадания — width/2 + translationX, а не width/2.
+            val centerX = pet.width / 2f + pet.translationX
+            if (abs(e.x - centerX) <= hitHw &&
                 abs(e.y - pet.height / 2f) <= hitHh
             ) {
                 caught++
@@ -973,7 +996,8 @@ class TamagotchiActivity : Activity() {
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(code.toByteArray(Charsets.UTF_8))
         val hex = digest.joinToString("") { "%02x".format(it) }
-        if (hex != Secret.hashFor(prefs.tgLives)) {
+        // hashFor принимает целевую жизнь (текущая + 1, она сейчас и оживает).
+        if (hex != Secret.hashFor(prefs.tgLives + 1)) {
             Toast.makeText(this, I18n.str(lang, "tg_wrong"), Toast.LENGTH_SHORT).show()
             return
         }

@@ -14,9 +14,13 @@ object Secret {
     const val LIFE3_HASH = "b248cfc4551e0b985db49b60d74dff66aba6f5efb1da79d073336d2c2a036639"
     const val LIFE4_HASH = "3b1c9b4d8e9c017bbaa168ca43a437e30c8b94f69f475193f830034c56acfb07"
 
+    /**
+     * Хеш именно для [lives]-й жизни (2-я → LIFE2, 3-я → LIFE3, 4-я+ → LIFE4).
+     * Вызывающий должен передавать целевую жизнь, а не текущую.
+     */
     fun hashFor(lives: Int): String = when {
-        lives >= 3 -> LIFE4_HASH
-        lives == 2 -> LIFE3_HASH
+        lives >= 4 -> LIFE4_HASH
+        lives == 3 -> LIFE3_HASH
         else -> LIFE2_HASH
     }
 }

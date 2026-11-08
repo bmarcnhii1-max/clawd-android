@@ -75,14 +75,30 @@ class MainActivity : Activity() {
     private lateinit var tvHint: TextView
 
     private var suppressListeners = false
+    private var lastIconColor = -1
 
     private fun t() = I18n.t(lang)
+    private fun tr(key: String): String = I18n.str(lang, key)
+
+    private fun jsonEscape(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("secLook", lookOpen)
+        outState.putBoolean("secBehavior", behaviorOpen)
+        outState.putBoolean("secSystem", systemOpen)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         prefs = Prefs(this)
         lang = prefs.lang
+        if (savedInstanceState != null) {
+            lookOpen = savedInstanceState.getBoolean("secLook", true)
+            behaviorOpen = savedInstanceState.getBoolean("secBehavior", false)
+            systemOpen = savedInstanceState.getBoolean("secSystem", false)
+        }
         bindViews()
         populate()
         applyTexts()
@@ -162,41 +178,40 @@ class MainActivity : Activity() {
     }
 
     private fun applyTexts() {
-        val ti = t()
         val prev = suppressListeners
         suppressListeners = true
-        tvSubtitle.text = ti["subtitle"] as String
-        tvLanguage.text = ti["language"] as String
-        tvSize.text = ti["size"] as String
-        tvSleep.text = ti["sleep"] as String
-        tvTips.text = ti["tips"] as String
-        tvNoNet.text = ti["no_internet"] as String
-        rbRu.text = ti["language_ru"] as String
-        rbEn.text = ti["language_en"] as String
-        rbSleep1.text = ti["sleep_1m"] as String
-        rbSleep3.text = ti["sleep_3m"] as String
-        rbSleep10.text = ti["sleep_10m"] as String
-        rbSleepNever.text = ti["sleep_never"] as String
-        val sizes = ti["sizes"] as List<String>
-        rbSize0.text = sizes[0]
-        rbSize1.text = sizes[1]
-        rbSize2.text = sizes[2]
-        rbSize3.text = sizes[3]
-        swWander.text = ti["wander"] as String
-        swPhrases.text = ti["phrases"] as String
-        swGravity.text = ti["gravity"] as String
-        swDance.text = ti["dance"] as String
-        swSounds.text = ti["sounds"] as String
-        btnStart.text = ti["start"] as String
-        btnStop.text = ti["stop"] as String
-        btnShare.text = ti["share"] as String
-        btnWallpaper.text = ti["wallpaper"] as String
-        btnTamagotchi.text = ti["tamagotchi"] as String
-        btnResetPos.text = ti["reset_pos"] as String
-        btnHide.text = if (PetService.petHidden) ti["show"] as String else ti["hide"] as String
-        tvHint.text = ti["hint"] as String
+        tvSubtitle.text = tr("subtitle")
+        tvLanguage.text = tr("language")
+        tvSize.text = tr("size")
+        tvSleep.text = tr("sleep")
+        tvTips.text = tr("tips")
+        tvNoNet.text = tr("no_internet")
+        rbRu.text = tr("language_ru")
+        rbEn.text = tr("language_en")
+        rbSleep1.text = tr("sleep_1m")
+        rbSleep3.text = tr("sleep_3m")
+        rbSleep10.text = tr("sleep_10m")
+        rbSleepNever.text = tr("sleep_never")
+        val sizes = I18n.list(lang, "sizes").ifEmpty { listOf("XS", "S", "M", "L") }
+        rbSize0.text = sizes.getOrElse(0) { "XS" }
+        rbSize1.text = sizes.getOrElse(1) { "S" }
+        rbSize2.text = sizes.getOrElse(2) { "M" }
+        rbSize3.text = sizes.getOrElse(3) { "L" }
+        swWander.text = tr("wander")
+        swPhrases.text = tr("phrases")
+        swGravity.text = tr("gravity")
+        swDance.text = tr("dance")
+        swSounds.text = tr("sounds")
+        btnStart.text = tr("start")
+        btnStop.text = tr("stop")
+        btnShare.text = tr("share")
+        btnWallpaper.text = tr("wallpaper")
+        btnTamagotchi.text = tr("tamagotchi")
+        btnResetPos.text = tr("reset_pos")
+        btnHide.text = if (PetService.petHidden) tr("show") else tr("hide")
+        tvHint.text = tr("hint")
         val isRunning = PetService.running && !PetService.petHidden
-        tvStatus.text = if (isRunning) ti["status_running"] as String else ti["status_stopped"] as String
+        tvStatus.text = if (isRunning) tr("status_running") else tr("status_stopped")
         tvStatus.setTextColor(
             if (isRunning) 0xFF7FD1A8.toInt() else 0xFF9AA0A6.toInt(),
         )
@@ -206,25 +221,29 @@ class MainActivity : Activity() {
         renderColorList()
         suppressListeners = prev
 
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        val pm = getSystemService(POWER_SERVICE) as? PowerManager
+            ?: run {
+                btnOverlay.text = tr("overlay_needed")
+                btnBattery.text = tr("battery_needed")
+                return
+            }
         if (Settings.canDrawOverlays(this)) {
-            btnOverlay.text = ti["overlay_ok"] as String
+            btnOverlay.text = tr("overlay_ok")
         } else {
-            btnOverlay.text = ti["overlay_needed"] as String
+            btnOverlay.text = tr("overlay_needed")
         }
         if (pm.isIgnoringBatteryOptimizations(packageName)) {
-            btnBattery.text = ti["battery_ok"] as String
+            btnBattery.text = tr("battery_ok")
         } else {
-            btnBattery.text = ti["battery_needed"] as String
+            btnBattery.text = tr("battery_needed")
         }
     }
 
     /** Заголовки секций со стрелками + видимость тел. */
     private fun drawSections() {
-        val ti = t()
-        tvSecLook.text = "${ti["sec_look"]}  ${if (lookOpen) "▾" else "▸"}"
-        tvSecBehavior.text = "${ti["sec_behavior"]}  ${if (behaviorOpen) "▾" else "▸"}"
-        tvSecSystem.text = "${ti["sec_system"]}  ${if (systemOpen) "▾" else "▸"}"
+        tvSecLook.text = "${tr("sec_look")}  ${if (lookOpen) "▾" else "▸"}"
+        tvSecBehavior.text = "${tr("sec_behavior")}  ${if (behaviorOpen) "▾" else "▸"}"
+        tvSecSystem.text = "${tr("sec_system")}  ${if (systemOpen) "▾" else "▸"}"
         secLookBody.visibility = if (lookOpen) View.VISIBLE else View.GONE
         secBehaviorBody.visibility = if (behaviorOpen) View.VISIBLE else View.GONE
         secSystemBody.visibility = if (systemOpen) View.VISIBLE else View.GONE
@@ -232,9 +251,7 @@ class MainActivity : Activity() {
 
     /** Инлайн-список окрасов вместо спиннера: точка + название + выбор. */
     private fun renderColorList() {
-        val ti = t()
-        @Suppress("UNCHECKED_CAST")
-        val names = ti["colors"] as List<String>
+        val names = I18n.list(lang, "colors")
         val selected = Math.floorMod(prefs.color, Sprite.count())
         colorList.removeAllViews()
         val d = resources.displayMetrics.density
@@ -347,10 +364,14 @@ class MainActivity : Activity() {
         prefs.posX = Int.MIN_VALUE
         prefs.posY = Int.MIN_VALUE
         sendToService(PetService.ACTION_RESET_POS)
-        Toast.makeText(this, t()["reset_done"] as String, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, tr("reset_done"), Toast.LENGTH_SHORT).show()
     }
 
     private fun toggleHide() {
+        if (!PetService.running) {
+            Toast.makeText(this, tr("status_stopped"), Toast.LENGTH_SHORT).show()
+            return
+        }
         val action = if (PetService.petHidden) PetService.ACTION_SHOW else PetService.ACTION_HIDE
         sendToService(action)
         // Состояние придёт из сервиса через stateListener: статическое поле
@@ -372,7 +393,7 @@ class MainActivity : Activity() {
 
     @SuppressLint("BatteryLife")
     private fun askBattery() {
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        val pm = getSystemService(POWER_SERVICE) as? PowerManager ?: return
         if (pm.isIgnoringBatteryOptimizations(packageName)) return
         try {
             startActivity(
@@ -410,21 +431,38 @@ class MainActivity : Activity() {
     }
 
     private fun launchPetService() {
-        startForegroundService(Intent(this, PetService::class.java))
-        sendToService(PetService.ACTION_SHOW)
-        Toast.makeText(this, t()["started"] as String, Toast.LENGTH_SHORT).show()
+        // Один вызов с action SHOW, а не старт + второй sendToService:
+        // ранняя смена running в onCreate гоняла и SHOW терялся,
+        // если сервис ещё не поднялся.
+        prefs.petWanted = true
+        val intent = Intent(this, PetService::class.java)
+            .setAction(PetService.ACTION_SHOW)
+        try {
+            startForegroundService(intent)
+        } catch (_: Exception) {
+            try {
+                startService(intent)
+            } catch (_: Exception) {
+            }
+        }
+        Toast.makeText(this, tr("started"), Toast.LENGTH_SHORT).show()
         finish()
     }
 
     private fun stopPet() {
-        if (!PetService.running) return
+        prefs.petWanted = false
+        if (!PetService.running) {
+            Toast.makeText(this, tr("status_stopped"), Toast.LENGTH_SHORT).show()
+            return
+        }
         sendToService(PetService.ACTION_STOP)
-        Toast.makeText(this, t()["paused"] as String, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, tr("paused"), Toast.LENGTH_SHORT).show()
     }
 
     /** Экспорт всех настроек и позиции одной строкой JSON через системный share. */
-    private fun shareSettings() {        val pos = if (prefs.positionSaved()) ",\"posX\":${prefs.posX},\"posY\":${prefs.posY}" else ""
-        val json = "{\"lang\":\"${prefs.lang}\",\"size\":${prefs.size},\"color\":${prefs.color}" +
+    private fun shareSettings() {
+        val pos = if (prefs.positionSaved()) ",\"posX\":${prefs.posX},\"posY\":${prefs.posY}" else ""
+        val json = "{\"lang\":\"${jsonEscape(prefs.lang)}\",\"size\":${prefs.size},\"color\":${prefs.color}" +
             ",\"wander\":${prefs.wander},\"phrases\":${prefs.phrases},\"gravity\":${prefs.gravity}" +
             ",\"dance\":${prefs.dance},\"sounds\":${prefs.sounds},\"sleepSeconds\":${prefs.sleepSeconds}$pos}"
         val send = Intent(Intent.ACTION_SEND).apply {
@@ -432,7 +470,7 @@ class MainActivity : Activity() {
             putExtra(Intent.EXTRA_TEXT, "Clawd settings: $json")
         }
         try {
-            startActivity(Intent.createChooser(send, null))
+            startActivity(Intent.createChooser(send, "Share settings"))
         } catch (_: Exception) {
         }
     }
@@ -442,31 +480,37 @@ class MainActivity : Activity() {
         if (!btnWallpaper.isEnabled) return
         btnWallpaper.isEnabled = false
         // На API < 31 обои декодируются в битмап — это нельзя делать в UI-потоке.
+        // В поток уносим только applicationContext, а не всю Activity.
+        val appCtx = applicationContext
         Thread {
-            val idx = WallpaperPalette.matchColorIndex(this)
+            val idx = WallpaperPalette.matchColorIndex(appCtx)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 btnWallpaper.isEnabled = true
                 if (idx == null) {
-                    Toast.makeText(this, t()["wallpaper_fail"] as String, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, tr("wallpaper_fail"), Toast.LENGTH_SHORT).show()
                     return@runOnUiThread
                 }
                 prefs.color = idx
                 applyPetIcon(idx)
                 applyTexts()
                 syncService()
-                Toast.makeText(this, t()["wallpaper_done"] as String, Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, tr("wallpaper_done"), Toast.LENGTH_SHORT).show()
             }
         }.start()
     }
 
     private fun syncService() {
         sendToService(PetService.ACTION_APPLY)
+        // Виджет показывает цвет/язык: раньше он обновлялся только по таймеру 30 мин.
+        PetWidgetProvider.refresh(this)
     }
 
     /** Иконка лаунчера — питомец в выбранном окрасе. */
     private fun applyPetIcon(index: Int) {
         val want = Math.floorMod(index, Sprite.count())
+        if (lastIconColor == want) return
+        lastIconColor = want
         for (i in 0 until Sprite.count()) {
             val name = ComponentName(this, "com.clawd.pet.LauncherIcon$i")
             val state = if (i == want) {

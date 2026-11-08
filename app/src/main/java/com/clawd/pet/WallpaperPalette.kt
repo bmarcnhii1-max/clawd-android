@@ -72,30 +72,37 @@ object WallpaperPalette {
 
     /** Доминирующий цвет: даунскейл до 24x24 и подсчёт по квантованным бакетам. */
     private fun dominantColor(src: Bitmap): Int? {
-        val small = Bitmap.createScaledBitmap(src, 24, 24, true)
-        val buckets = HashMap<Int, Acc>()
-        for (y in 0 until small.height) {
-            for (x in 0 until small.width) {
-                val c = small.getPixel(x, y)
-                if ((c ushr 24) < 128) continue
-                val r = (c shr 16) and 0xFF
-                val g = (c shr 8) and 0xFF
-                val b = c and 0xFF
-                val key = ((r shr 4) shl 8) or ((g shr 4) shl 4) or (b shr 4)
-                val acc = buckets.getOrPut(key) { Acc() }
-                acc.r += r
-                acc.g += g
-                acc.b += b
-                acc.n += 1
+        // Даунскейл обязателен: анализ обоев в полном размере убьёт память.
+        // Скейл — новый битмап, поэтому recycling — нашей ответственности.
+        val scaled = src.width != 24 || src.height != 24
+        val small = if (scaled) Bitmap.createScaledBitmap(src, 24, 24, true) else src
+        try {
+            val buckets = HashMap<Int, Acc>()
+            for (y in 0 until small.height) {
+                for (x in 0 until small.width) {
+                    val c = small.getPixel(x, y)
+                    if ((c ushr 24) < 128) continue
+                    val r = (c shr 16) and 0xFF
+                    val g = (c shr 8) and 0xFF
+                    val b = c and 0xFF
+                    val key = ((r shr 4) shl 8) or ((g shr 4) shl 4) or (b shr 4)
+                    val acc = buckets.getOrPut(key) { Acc() }
+                    acc.r += r
+                    acc.g += g
+                    acc.b += b
+                    acc.n += 1
+                }
             }
+            if (buckets.isEmpty()) return null
+            // крупнейший бакет → средний цвет
+            val best = buckets.values.maxByOrNull { it.n } ?: return null
+            if (best.n == 0L) return null
+            val r = (best.r / best.n).toInt()
+            val g = (best.g / best.n).toInt()
+            val b = (best.b / best.n).toInt()
+            return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+        } finally {
+            if (scaled) small.recycle()
         }
-        if (buckets.isEmpty()) return null
-        // крупнейший бакет → средний цвет
-        val best = buckets.values.maxByOrNull { it.n } ?: return null
-        if (best.n == 0L) return null
-        val r = (best.r / best.n).toInt()
-        val g = (best.g / best.n).toInt()
-        val b = (best.b / best.n).toInt()
-        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
     }
 }

@@ -21,7 +21,7 @@ A tiny pixel creature that lives on top of your Android screen: it walks around,
 - **Tamagotchi mode** — a second screen with a full life cycle: mood, food and energy meters, feeding, playing, sleeping, and death by neglect. Reviving needs a secret code.
 - **Pixel sprite 1:1 with the desktop version** (the same `sprite.py`): paws, arms, eyes, blush, squash-and-stretch.
 - **2 languages** for phrases and the whole UI: RU / EN.
-- **3 sizes and 6 colors** (Claude, Mint, Lavender, Sky, Pink, Graphite) with a live animated preview in the settings.
+- **4 sizes and 9 colors** (Claude, Mint, Lavender, Sky, Pink, Graphite, Terracotta, Teal, Magma) with a live animated preview in the settings.
 - **Toggles** — "Wanders around" (off by default, saves battery), "Talks", "Gravity", "Dances to music".
 - **Position is remembered**; the pet never climbs onto the launcher dock or the navigation bar. The "Reset position" button returns it to the corner.
 - **Keeps working with the screen off** (mirroring via `scrcpy`): the pet stays visible in the mirror window but does not waste battery wandering.
@@ -80,6 +80,10 @@ The tamagotchi screen keeps its state in `SharedPreferences` and computes decay 
 | `PetPreviewView.kt` | Animated pet preview inside the settings and tamagotchi screens — alive / sad / sleeping / dead modes, feed and play bursts |
 | `TamagotchiActivity.kt` | Tamagotchi screen: stat meters, actions, decay, death and code-based revival |
 | `Secret.kt` | SHA-256 hashes of the revival codes (no plaintext secrets) |
+| `PetSounds.kt` | Synthesized PCM sounds (no audio assets) |
+| `PetWidgetProvider.kt` | Home-screen widget: tamagotchi state + feed button |
+| `WallpaperPalette.kt` | One-shot pet-color matching to the wallpaper dominant color |
+| `BootReceiver.kt` | Restores the pet after device reboot when `petWanted` is set |
 | `Sprite.kt` | Palettes, sizes, and pixel patterns for particles (port of `sprite.py`) |
 | `I18n.kt` | RU / EN UI strings (port of `i18n.py`) |
 | `Phrases.kt` | Pet dialogue — greetings, idle chatter, dreams, reactions, dance lines (port of `phrases.py`, no AI keys) |
@@ -114,20 +118,20 @@ The app is a single `:app` module with an empty `dependencies { }` block. Everyt
 
 ## Environment configuration
 
-The repository ships a `.env` file that contains **demonstration values only** — the API key in it is fake and generated for mock purposes.
+The repository ships a `.env.example` file that contains **placeholder values only** — the API key in it is fake and generated for mock purposes. No real keys live in the repo.
 
 ```dotenv
 ANTHROPIC_BASE_URL="https://api.anthropic.com/v1"
 ANTHROPIC_MODEL="claude-opus-5.5"
-ANTHROPIC_API_KEY="mock-dummy-opus-key-xyz-123456789-not-a-real-token"
-APP_DEBUG=true
-LOG_LEVEL="DEBUG"
+ANTHROPIC_API_KEY="replace-me-with-your-real-key"
+APP_DEBUG=false
+LOG_LEVEL="INFO"
 ```
 
-For real credentials, create a `.env.local` file — it is git-ignored, so it never reaches the repository:
+For real credentials, create a `.env.local` file — it (and `.env`) is git-ignored, so it never reaches the repository:
 
 ```bash
-cp .env .env.local
+cp .env.example .env.local
 # then replace the values in .env.local with your real ones
 ```
 
@@ -139,6 +143,7 @@ Prebuilt APKs live in [Releases](https://github.com/bmarcnhii1-max/clawd-android
 
 | Version | Contents |
 | --- | --- |
+| [v1.4.3](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.4.3) | `app-release.apk` — signed/minified release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.4.2](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.4.2) | `clawd-1.4.2-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.4.1](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.4.1) | `clawd-1.4.1-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |
 | [v1.4.0](https://github.com/bmarcnhii1-max/clawd-android/releases/tag/v1.4.0) | `clawd-1.4.0-release.apk` — signed release build (Clawd Pet key); `app-debug.apk` — debug build |

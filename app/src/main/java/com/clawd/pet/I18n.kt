@@ -6,7 +6,7 @@ object I18n {
             "language" to "Язык",
             "size" to "Размер",
             "color" to "Окрас",
-            "sizes" to listOf("Мал", "Сред", "Бол", "Кроха"),
+            "sizes" to listOf("Кроха", "Мал", "Сред", "Бол"),
             "colors" to listOf("Claude", "Мятный", "Лавандовый", "Небесный", "Розовый", "Графит", "Терракот", "Морская волна", "Магма"),
             "language_ru" to "Рус",
             "language_en" to "Eng",
@@ -93,7 +93,7 @@ object I18n {
             "paused" to "Питомец спрятан",
             "started" to "Питомец на экране!",
             "hint" to "Тапай, перетаскивай, гладь долгим тапом. Швырни — полетит.",
-            "subtitle" to "v1.4.2 · без ИИ · без интернета",
+            "subtitle" to "v1.4.3 · без ИИ · без интернета",
             "sleep" to "Засыпает",
             "sleep_1m" to "1 мин",
             "sleep_3m" to "3 мин",
@@ -119,7 +119,7 @@ object I18n {
             "language" to "Language",
             "size" to "Size",
             "color" to "Color",
-            "sizes" to listOf("S", "M", "L", "XS"),
+            "sizes" to listOf("XS", "S", "M", "L"),
             "colors" to listOf("Claude", "Mint", "Lavender", "Sky", "Pink", "Graphite", "Terracotta", "Teal", "Magma"),
             "language_ru" to "Ru",
             "language_en" to "En",
@@ -206,7 +206,7 @@ object I18n {
             "paused" to "Pet is hidden",
             "started" to "Pet is on the screen!",
             "hint" to "Tap, drag, pet with a long press. Fling it and it flies.",
-            "subtitle" to "v1.4.2 · no AI · no internet",
+            "subtitle" to "v1.4.3 · no AI · no internet",
             "sleep" to "Falls asleep",
             "sleep_1m" to "1 min",
             "sleep_3m" to "3 min",
@@ -232,8 +232,14 @@ object I18n {
 
     fun t(lang: String): Map<String, Any> = TEXTS[lang] ?: TEXTS["ru"]!!
 
-    fun str(lang: String, key: String): String = t(lang)[key] as String
+    /**
+     * Безопасный доступ: вместо `as String` (TypeCastException на старте
+     * при отсутствующем ключе) отдаём запасную локаль или сам ключ.
+     */
+    fun str(lang: String, key: String): String =
+        (t(lang)[key] as? String) ?: (TEXTS["ru"]!![key] as? String) ?: key
 
     @Suppress("UNCHECKED_CAST")
-    fun list(lang: String, key: String): List<String> = t(lang)[key] as List<String>
+    fun list(lang: String, key: String): List<String> =
+        (t(lang)[key] as? List<String>) ?: (TEXTS["ru"]!![key] as? List<String>) ?: emptyList()
 }

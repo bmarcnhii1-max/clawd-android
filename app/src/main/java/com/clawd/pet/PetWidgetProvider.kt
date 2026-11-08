@@ -20,6 +20,9 @@ class PetWidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val ACTION_FEED = "com.clawd.pet.WIDGET_FEED"
+        /** Токен из PendingIntent виджета: без него FEED не обрабатывается. */
+        const val EXTRA_FEED_TOKEN = "com.clawd.pet.WIDGET_FEED_TOKEN"
+        private const val FEED_TOKEN = "clawd-widget-feed-v1"
 
         /** Обновить все виджеты сразу, не дожидаясь системных 30 минут. */
         fun refresh(context: Context) {
@@ -35,29 +38,36 @@ class PetWidgetProvider : AppWidgetProvider() {
             val t = I18n.t(prefs.lang)
             val views = RemoteViews(context.packageName, R.layout.widget_pet)
             views.setImageViewBitmap(R.id.ivWidgetPet, petBitmap(prefs.color))
+            // Та же логика статуса, что на экране тамагочи
+            // (TamagotchiActivity.draw): минимум из mood,hunger,energy,health
+            // в этом порядке — раньше виджет расходился при равных статах.
             val status = when {
                 !prefs.tgAlive -> t["tg_dead"] as String
                 prefs.tgSleeping -> t["tg_sleep_note"] as String
                 prefs.tgHealth <= 3 -> t["tg_sick"] as String
                 else -> {
-                    val h = prefs.tgHunger
-                    val m = prefs.tgMood
-                    val e = prefs.tgEnergy
-                    val w = minOf(h, m, e)
-                    when {
-                        w > 6 -> t["tg_fine"] as String
-                        w == h -> t["tg_hungry"] as String
-                        w == e -> t["tg_tired"] as String
-                        else -> t["tg_sad"] as String
-                    }
+                    val candidates = listOf(
+                        prefs.tgMood to "tg_sad",
+                        prefs.tgHunger to "tg_hungry",
+                        prefs.tgEnergy to "tg_tired",
+                        prefs.tgHealth to "tg_sick",
+                    )
+                    val lowest = candidates.minByOrNull { it.first } ?: (0 to "tg_sad")
+                    if (lowest.first > 6) t["tg_fine"] as String else t[lowest.second] as String
                 }
             }
             views.setTextViewText(R.id.tvWidgetStatus, status)
-            views.setTextColor(R.id.tvWidgetStatus, 0xFF9AA0A6.toInt())
+            // setTextColor существует только с API 31, а minSdk — 26:
+            // на старых прошивках вызов даёт NoSuchMethodError.
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                views.setTextColor(R.id.tvWidgetStatus, 0xFF9AA0A6.toInt())
+            }
             views.setTextViewText(R.id.btnWidgetFeed, t["tg_feed"] as String)
             val feed = PendingIntent.getBroadcast(
                 context, 0,
-                Intent(context, PetWidgetProvider::class.java).setAction(ACTION_FEED),
+                Intent(context, PetWidgetProvider::class.java)
+                    .setAction(ACTION_FEED)
+                    .putExtra(EXTRA_FEED_TOKEN, FEED_TOKEN),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
             views.setOnClickPendingIntent(R.id.btnWidgetFeed, feed)
@@ -101,7 +111,11 @@ class PetWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_FEED) {
+        // Ресивер exported=true, поэтому проверяем токен из собственного
+        // PendingIntent и режем посторонние broadcast'ы.
+        if (intent.action == ACTION_FEED &&
+            intent.getStringExtra(EXTRA_FEED_TOKEN) == FEED_TOKEN
+        ) {
             val prefs = Prefs(context)
             Tg.applyDecay(prefs)
             if (prefs.tgAlive) {

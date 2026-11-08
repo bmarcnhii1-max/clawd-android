@@ -20,52 +20,76 @@ object Tg {
             return
         }
         if (!prefs.tgAlive) return
-        if (prefs.tgLastCare == 0L) {
+        var lastCare = prefs.tgLastCare
+        if (lastCare == 0L) {
             // Миграция старых сохранений: отсчёт с этого момента, без казни.
-            prefs.tgLastCare = now
+            lastCare = now
         }
-        if (now - prefs.tgLastCare > NEGLECT_MS) {
-            prefs.tgHunger = 0
-            prefs.tgMood = 0
-            prefs.tgEnergy = 0
-            prefs.tgSleeping = false
-            prefs.tgUpdatedAt = now
+        var hunger = prefs.tgHunger
+        var mood = prefs.tgMood
+        var energy = prefs.tgEnergy
+        var health = prefs.tgHealth
+        var sleeping = prefs.tgSleeping
+        var alive = true
+        var updatedAt = prefs.tgUpdatedAt
+
+        if (now - lastCare > NEGLECT_MS) {
+            hunger = 0
+            mood = 0
+            energy = 0
+            sleeping = false
+            updatedAt = now
         }
-        val elapsed = now - stored
-        if (prefs.tgSleeping) {
-            if (prefs.tgEnergy >= MAX) {
+        var elapsed = now - stored
+        if (elapsed < 0L) {
+            // Часы перевели назад — не «перематываем» decay и не
+            // оставляем stored в будущем, а начинаем отсчёт заново.
+            updatedAt = now
+            elapsed = 0L
+        }
+        if (sleeping) {
+            if (energy >= MAX) {
                 // Спит с полной бодростью: нечего восполнять, но и будить нельзя —
                 // иначе кнопка «спать» мгновенно отменяется на следующем тике.
-                prefs.tgUpdatedAt = now
-                return
-            }
-            val regen = (elapsed / SLEEP_REGEN_MS).toInt()
-            if (regen > 0) {
-                prefs.tgEnergy = prefs.tgEnergy + regen
-                // Сон лечит, но вдвое медленнее бодрости.
-                prefs.tgHealth = prefs.tgHealth + regen / 2
-                if (prefs.tgEnergy >= MAX) prefs.tgSleeping = false
-                // списываем только потраченное, остаток не сгорает
-                prefs.tgUpdatedAt = stored + regen * SLEEP_REGEN_MS
+                updatedAt = now
+            } else {
+                val regen = (elapsed / SLEEP_REGEN_MS).toInt()
+                if (regen > 0) {
+                    energy = (energy + regen).coerceAtMost(MAX)
+                    // Сон лечит, но вдвое медленнее бодрости; округление
+                    // вверх, чтобы реген 1 не терялся целочисленным делением.
+                    health = (health + (regen + 1) / 2).coerceAtMost(MAX)
+                    if (energy >= MAX) sleeping = false
+                    // списываем только потраченное, остаток не сгорает
+                    updatedAt = stored + regen * SLEEP_REGEN_MS
+                }
             }
         } else {
             val lost = (elapsed / DECAY_MS).toInt()
             if (lost > 0) {
-                prefs.tgHunger -= lost
+                hunger -= lost
                 // Пока болеет — настроение тает вдвое быстрее.
-                prefs.tgMood -= if (prefs.tgHealth <= 3) lost * 2 else lost
-                prefs.tgEnergy -= lost
+                mood -= if (health <= 3) lost * 2 else lost
+                energy -= lost
                 // Голод бьёт по здоровью, сытая жизнь лечит.
-                if (prefs.tgHunger <= 0) prefs.tgHealth -= lost
-                else if (prefs.tgHunger >= 7 && prefs.tgEnergy >= 7) prefs.tgHealth += lost
-                prefs.tgUpdatedAt = stored + lost * DECAY_MS
+                if (hunger <= 0) health -= lost
+                else if (hunger >= 7 && energy >= 7) health += lost
+                updatedAt = stored + lost * DECAY_MS
             }
         }
-        if (prefs.tgAlive && prefs.tgHunger <= 0 && prefs.tgMood <= 0 && prefs.tgEnergy <= 0) {
-            prefs.tgAlive = false
-            prefs.tgSleeping = false
-            prefs.tgUpdatedAt = now
+        hunger = hunger.coerceIn(0, MAX)
+        mood = mood.coerceIn(0, MAX)
+        energy = energy.coerceIn(0, MAX)
+        health = health.coerceIn(0, MAX)
+        // Смерть — от полного запустения (все три главных нуля) или от
+        // голодной смерти при нулевом здоровье. Раньше health в условии
+        // смерти не участвовал и питомец при health=0, но с едой был бессмертен.
+        if (alive && ((hunger <= 0 && mood <= 0 && energy <= 0) || (hunger <= 0 && health <= 0))) {
+            alive = false
+            sleeping = false
+            updatedAt = now
         }
+        prefs.batchTg(hunger, mood, energy, health, sleeping, alive, updatedAt, lastCare)
     }
 
     /** Худший показатель — им определяется «настроение» питомца в оверлее. */

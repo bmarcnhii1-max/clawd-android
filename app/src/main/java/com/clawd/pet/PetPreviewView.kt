@@ -70,18 +70,24 @@ class PetPreviewView @JvmOverloads constructor(
 
     fun setVigor(value: Float) {
         vigor = value.coerceIn(0f, 1f)
+        // Для MODE_DEAD/MODE_SAD циклов перерисовки может не быть —
+        // без этого смена бодрости не видна до следующего draw().
+        if (!puffs.isNotEmpty()) invalidate()
     }
 
     fun burst(kind: Int) {
         val d = resources.displayMetrics.density
         val u = Sprite.unitDp(sizeIndex) * d
         val now = System.nanoTime() / 1_000_000L
+        // До layout width/height равны 0 — спавнить частицы в (0,0) бессмысленно.
+        val w = width.takeIf { it > 0 } ?: (u * Sprite.GRID_W).roundToInt()
+        val h = height.takeIf { it > 0 } ?: (u * Sprite.GRID_H).roundToInt()
         for (i in 0 until 7) {
             val fromTop = kind == BURST_PLAY
             puffs.add(
                 Puff(
-                    x = (width * (0.25f + random.nextFloat() * 0.5f)),
-                    y = height * (if (fromTop) 0.30f else 0.62f) + u * (random.nextFloat() - 0.5f),
+                    x = (w * (0.25f + random.nextFloat() * 0.5f)),
+                    y = h * (if (fromTop) 0.30f else 0.62f) + u * (random.nextFloat() - 0.5f),
                     vx = (random.nextFloat() - 0.5f) * u * 3.2f,
                     vy0 = if (fromTop) -u * (1.6f + random.nextFloat() * 2f)
                     else -u * (0.6f + random.nextFloat() * 1.2f),
@@ -125,7 +131,12 @@ class PetPreviewView @JvmOverloads constructor(
         if ((alive || sleeping) && running && visible) {
             // 60 fps, но фаза идёт тем же темпом (цикл 3 с): шаг 1/3 за кадр.
             phase = (phase + 1f / 3f) % 60f
-            postInvalidateDelayed(if (alive) 16L else 40L)
+            // MODE_SAD статичнен — ему не нужен 60fps цикл.
+            postInvalidateDelayed(when {
+                mode == MODE_SAD -> 200L
+                alive -> 16L
+                else -> 40L
+            })
         }
         val d = resources.displayMetrics.density
         val u = Sprite.unitDp(sizeIndex) * d
@@ -217,8 +228,10 @@ class PetPreviewView @JvmOverloads constructor(
             paint.textSize = u * 3.2f
             paint.isFakeBoldText = true
             val bob = sin(phase / 60.0 * Math.PI * 2.0).toFloat()
-            canvas.drawText("Z", right * u - u * 1.2f, top * u + u * 1.2f + bob * u * 0.8f, paint)
-            canvas.drawText("z", right * u + u * 1.4f, top * u - u * 0.2f + bob * u * 0.8f, paint)
+            // Z рисуется от головы с теми же ox/oy/bounce, что и тело,
+            // иначе «Z» висит в воздухе справа-вверху спрайта.
+            canvas.drawText("Z", ox + right * u - u * 1.2f, oy + top * u + u * 1.2f + bounce + bob * u * 0.8f, paint)
+            canvas.drawText("z", ox + right * u + u * 1.4f, oy + top * u - u * 0.2f + bounce + bob * u * 0.8f, paint)
             paint.isFakeBoldText = false
         }
 
@@ -236,10 +249,13 @@ class PetPreviewView @JvmOverloads constructor(
                     it.remove()
                     continue
                 }
-                val t = age / 20f
+                // t ограничен: без клампа скорость растёт как age^2 и частицы
+                // выстреливают за пределы вьюхи в первые 2–3 кадра.
+                val t = (age / 20f).coerceAtMost(4f)
                 p.px += (p.vx / 60f) * t * dtF
                 p.py += (p.vy / 60f) * t * dtF
                 p.vy += (if (p.side) 0.18f * u * t else -0.06f * u * t) * dtF
+                p.vy = p.vy.coerceIn(-u * 8f, u * 8f)
                 paint.color = p.color
                 paint.alpha = (255 * (1f - age / p.ttl)).toInt().coerceIn(0, 255)
                 canvas.drawRect(p.px - u * 0.7f, p.py - u * 0.7f, p.px + u * 0.7f, p.py + u * 0.7f, paint)

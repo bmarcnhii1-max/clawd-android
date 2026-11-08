@@ -49,7 +49,9 @@ class PetService : Service() {
     private var batteryLow = false
     private var userHidden = false
     private var musicActive = false
-    private val audioManager: AudioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
+    private val audioManager: AudioManager? by lazy {
+        getSystemService(AUDIO_SERVICE) as? AudioManager
+    }
 
     /**
      * Реакция на музыку: лёгкий опрос isMusicActive (1 р/с, только пока включён танец).
@@ -58,10 +60,13 @@ class PetService : Service() {
      */
     private val musicCheck: Runnable = Runnable {
         if (!prefs.dance || userHidden) {
+            // Перепостим: иначе цепочка умирает навсегда, если танец
+            // выключат/включили «мимо» APPLY/SHOW, и опрос не возобновится.
+            handler.postDelayed(musicCheck, 1000L)
             return@Runnable
         }
         val active = try {
-            audioManager.isMusicActive
+            audioManager?.isMusicActive ?: false
         } catch (_: Exception) {
             false
         }
@@ -151,16 +156,20 @@ class PetService : Service() {
     }
 
     private fun isScreenInteractive(): Boolean {
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        return pm.isInteractive
+        val pm = getSystemService(POWER_SERVICE) as? PowerManager
+        return pm?.isInteractive ?: true
     }
 
     /** -1, если уровень недоступен: getIntProperty возвращает 0/минус при ошибке. */
     private fun readBatteryPercent(): Int {
-        val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
+        val bm = getSystemService(BATTERY_SERVICE) as? BatteryManager ?: return -1
         val pct = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
         return if (pct in 0..100) pct else {
-            val i = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val i = try {
+                registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            } catch (_: Exception) {
+                null
+            }
             val level = i?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
             val scale = i?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
             if (level >= 0 && scale > 0) level * 100 / scale else -1
@@ -189,17 +198,29 @@ class PetService : Service() {
         prefs = Prefs(this)
         screenOn = prefs.alwaysVisible || isScreenInteractive()
         batteryLow = readBatteryPercent() in 0..15
-        startForeground(NOTIF_ID, buildNotification())
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= 29) {
+            startForeground(
+                NOTIF_ID,
+                buildNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
+        } else {
+            startForeground(NOTIF_ID, buildNotification())
+        }
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_BATTERY_LOW)
             addAction(Intent.ACTION_BATTERY_OKAY)
         }
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(receiver, filter)
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(receiver, filter)
+            }
+        } catch (_: Exception) {
         }
         overlay = PetOverlay(this, prefs)
         overlay?.screenActive = isScreenInteractive()
@@ -208,9 +229,12 @@ class PetService : Service() {
         handler.postDelayed(screenCheck, 1500L)
         handler.post(tgCheck)
         handler.postDelayed(remindCheck, 30L * 60_000L)
-        sensorManager = getSystemService(SENSOR_SERVICE) as android.hardware.SensorManager?
-        sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)?.let {
-            sensorManager?.registerListener(shakeListener, it, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+        sensorManager = getSystemService(SENSOR_SERVICE) as? android.hardware.SensorManager
+        val accel = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+        if (accel != null) {
+            sensorManager?.registerListener(
+                shakeListener, accel, android.hardware.SensorManager.SENSOR_DELAY_NORMAL, handler,
+            )
         }
     }
 
@@ -224,17 +248,20 @@ class PetService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                prefs.petWanted = false
                 overlay?.hide()
                 stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_APPLY -> {
+                prefs.petWanted = true
                 overlay?.applyConfig()
                 startMusicCheck()
                 // Язык и тексты шторки могли измениться вместе с настройками.
                 refreshNotification()
             }
             ACTION_RESET_POS -> {
+                prefs.petWanted = true
                 overlay?.resetPosition()
                 if (!userHidden) maybeShow()
             }
@@ -246,6 +273,7 @@ class PetService : Service() {
                 notifyState()
             }
             ACTION_SHOW -> {
+                prefs.petWanted = true
                 userHidden = false
                 petHidden = false
                 maybeShow()
@@ -254,6 +282,9 @@ class PetService : Service() {
                 notifyState()
             }
         }
+        // intent == null (sticky-перезапуск после убийства ОС):
+        // оверлей нужно вернуть, а не молча держать иконку.
+        if (intent == null) maybeShow()
         return START_STICKY
     }
 
@@ -263,10 +294,8 @@ class PetService : Service() {
     }
 
     override fun onDestroy() {
-        handler.removeCallbacks(screenCheck)
-        handler.removeCallbacks(musicCheck)
-        handler.removeCallbacks(tgCheck)
-        handler.removeCallbacks(remindCheck)
+        handler.removeCallbacksAndMessages(null)
+        overlay = null
         sensorManager?.unregisterListener(shakeListener)
         overlay?.hide()
         try {
@@ -284,7 +313,8 @@ class PetService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        val nm = getSystemService(NOTIFICATION_SERVICE) as? NotificationManager
+            ?: throw IllegalStateException("NotificationManager unavailable")
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Clawd", NotificationManager.IMPORTANCE_MIN),
         )
@@ -314,15 +344,18 @@ class PetService : Service() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
         }
-        val toggleLabel = if (userHidden) t["show"] as String else t["hide"] as String
+        // Fallback вместо `as String`: если в какой-то локали не хватает ключа,
+        // уведомление должно покаяться на запасном языке, а не уронить onCreate.
+        fun tr(key: String): String = (t[key] as? String) ?: (I18n.t("ru")[key] as? String) ?: key
+        val toggleLabel = if (userHidden) tr("show") else tr("hide")
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_pet_notif)
             .setContentTitle("Clawd")
-            .setContentText(if (userHidden) t["paused"] as String else t["running"] as String)
+            .setContentText(if (userHidden) tr("paused") else tr("running"))
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(0, toggleLabel, toggle)
-            .addAction(0, t["stop"] as String, stop)
+            .addAction(0, tr("stop"), stop)
         if (userHidden) {
             builder.setOngoing(false)
         }
@@ -331,8 +364,8 @@ class PetService : Service() {
 
     private fun refreshNotification() {
         try {
-            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            nm.notify(NOTIF_ID, buildNotification())
+            val nm = getSystemService(NOTIFICATION_SERVICE) as? NotificationManager
+            nm?.notify(NOTIF_ID, buildNotification())
         } catch (_: Exception) {
         }
     }

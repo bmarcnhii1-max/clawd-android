@@ -95,5 +95,37 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("always_visible", true)
         set(value) = sp.edit().putBoolean("always_visible", value).apply()
 
+    /** Хочет ли пользователь, чтобы питомец жил после перезагрузки устройства. */
+    var petWanted: Boolean
+        get() = sp.getBoolean("pet_wanted", false)
+        set(value) = sp.edit().putBoolean("pet_wanted", value).apply()
+
     fun positionSaved(): Boolean = posX != Int.MIN_VALUE && posY != Int.MIN_VALUE
+
+    /**
+     * Атомарная запись: один edit().apply() вместо серии одиночных.
+     * Используется Tg.applyDecay, чтобы убийство процесса между полями
+     * не давало «сытость обновилась, бодрость нет».
+     */
+    fun batchTg(
+        hungry: Int,
+        mood: Int,
+        energy: Int,
+        health: Int,
+        sleeping: Boolean,
+        alive: Boolean,
+        updatedAt: Long,
+        lastCare: Long,
+    ) {
+        sp.edit()
+            .putInt("tg_hunger", hungry.coerceIn(0, 10))
+            .putInt("tg_mood", mood.coerceIn(0, 10))
+            .putInt("tg_energy", energy.coerceIn(0, 10))
+            .putInt("tg_health", health.coerceIn(0, 10))
+            .putBoolean("tg_sleeping", sleeping)
+            .putBoolean("tg_alive", alive)
+            .putLong("tg_updated_at", updatedAt)
+            .putLong("tg_last_care", lastCare)
+            .apply()
+    }
 }

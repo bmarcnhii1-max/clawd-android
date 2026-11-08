@@ -6,8 +6,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Release signing lives in keystore.properties (gitignored); without it the release build
-// falls back to the debug key so CI keeps working.
+// Release signing lives in keystore.properties (gitignored).
+// Without it the release build is signed with the DEBUG key explicitly —
+// the APK stays installable, but upgrade from a properly signed release
+// will fail due to signature conflict (see RELEASE_NOTES).
 val keystoreProps = Properties().apply {
     val f = rootProject.file("keystore.properties")
     if (f.exists()) load(FileInputStream(f))
@@ -21,8 +23,8 @@ android {
         applicationId = "com.clawd.pet"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.4.2"
+        versionCode = 15
+        versionName = "1.4.3"
     }
 
     signingConfigs {
@@ -38,10 +40,18 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            if (keystoreProps.isNotEmpty()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
+        }
+        debug {
+            isDebuggable = true
         }
     }
 

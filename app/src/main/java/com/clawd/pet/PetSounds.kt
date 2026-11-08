@@ -15,17 +15,28 @@ import kotlin.random.Random
 object PetSounds {
     private const val RATE = 22050
 
+    // Один очередь-поток вместо нового Thread на каждый звук:
+    // быстрые тапы «Кормить» раньше плодили пачку AudioTrack поверх друг друга.
+    private val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
     private fun allowed(ctx: Context): Boolean {
         if (!Prefs(ctx).sounds) return false
-        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
         return am.ringerMode != AudioManager.RINGER_MODE_SILENT
     }
 
     private fun play(ctx: Context, samples: ShortArray) {
         if (!allowed(ctx)) return
-        Thread {
+        executor.execute {
+            var track: AudioTrack? = null
             try {
-                val track = AudioTrack.Builder()
+                val minBuf = AudioTrack.getMinBufferSize(
+                    RATE,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                )
+                if (minBuf <= 0) return@execute
+                track = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -39,17 +50,22 @@ object PetSounds {
                             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                             .build(),
                     )
-                    .setBufferSizeInBytes(samples.size * 2)
+                    .setBufferSizeInBytes(maxOf(minBuf, samples.size * 2))
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .build()
+                if (track.state != AudioTrack.STATE_INITIALIZED) return@execute
                 track.write(samples, 0, samples.size)
                 track.play()
                 Thread.sleep((samples.size * 1000L / RATE) + 50L)
-                track.stop()
-                track.release()
             } catch (_: Exception) {
+                // звук не критичен — молча пропускаем
+            } finally {
+                // release именно в finally: раньше прерывание sleep
+                // оставляло нативный трек не освобождённым.
+                try { track?.stop() } catch (_: Exception) {}
+                try { track?.release() } catch (_: Exception) {}
             }
-        }.start()
+        }
     }
 
     private fun sine(phase: Double): Short =
